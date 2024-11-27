@@ -1,0 +1,31 @@
+# spack-stack hash: 6040a25
+# spack hash: e5274e9c2d
+spack:
+  concretizer:
+    unify: when_possible
+  view: false
+  include:
+  - site
+  - common
+  definitions:
+  - compilers: ['%gcc@9.4.0']
+  - packages:
+    - ecmwf-atlas
+    - ecbuild
+    - eckit
+    - fckit
+    - parallelio
+    - netcdf-c
+    - netcdf-fortran
+    - parallel-netcdf
+    - gptl
+    - jedi-cmake
+    - gsl-lite
+    - udunits
+    - nccmp
+    - py-pycodestyle
+
+  specs:
+  - matrix:
+    - [$packages]
+    - [$compilers]

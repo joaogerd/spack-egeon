@@ -1,0 +1,95 @@
+packages:
+  all:
+    compiler:: [gcc@9.4.0]
+    providers:
+      mpi:: [openmpi@4.1.1]
+    target: [core2]
+  mpi:
+    buildable: False
+  openmpi:
+    externals:
+    - spec: openmpi@4.1.1 
+      modules:
+      - gnu9/9.4.0
+      - hwloc/2.5.0
+      - ucx/1.11.2
+      - libfabric/1.13.0
+      - openmpi4/4.1.1
+  autoconf:
+    externals:
+    - spec: autoconf@2.69%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/autoconf-2.69-ijgegheosdo5iqelkhhqy3v3mvrvvydh
+      modules:
+      - autoconf/2.69-gcc-9.4.0-ijgeghe
+  automake:
+    externals:
+    - spec: automake@1.16.5%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/automake-1.16.5-raergs3uxwrrvemyriwaqkkapyjj3sj4
+      modules:
+      - automake/1.16.5-gcc-9.4.0-raergs3
+  binutils:
+    externals:
+    - spec: binutils@2.37%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/binutils-2.37-44se45ocvpio22yagfdbnzt6uyjp7ggy
+      modules:
+      - binutils/2.37-gcc-9.4.0-44se45o
+  curl:
+    externals:
+    - spec: curl@7.85.0%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/curl-7.85.0-qbney7yudyfu2upzsjetbhteq3cy3ego
+      modules:
+      - curl/7.85.0-gcc-9.4.0-qbney7y
+  diffutils:
+    externals:
+    - spec: diffutils@3.8%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/diffutils-3.8-uvi2god6p2utgfx3rw3haxly6a37v4tj
+      modules:
+      - diffutils/3.8-gcc-9.4.0-uvi2god
+  findutils:
+    externals:
+    - spec: findutils@4.9.0%gcc@9.4.0
+      prefix: /opt/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/findutils-4.9.0-fkc3udaec67g75xligh23s3ockmw5lmo
+      modules:
+      - findutils/4.9.0-gcc-9.4.0-fkc3uda
+  gmake:
+    externals:
+    - spec: gmake@4.3%gcc@9.4.0
+      prefix: /opt/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/gmake-4.3-vhikrkueco7tjdc2h3iw2w6bfwben3ea
+      modules:
+      - gmake/4.3-gcc-9.4.0-vhikrku
+  krb5:
+    externals:
+    - spec: krb5@1.19.3%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/krb5-1.19.3-vtl5siqtxaulz7dq63hfhfxjvnlolml5
+      modules:
+      - krb5/1.19.3-gcc-9.4.0-vtl5siq
+  m4:
+    externals:
+    - spec: m4@1.4.19%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/m4-1.4.19-mi3u6bahlct7zg4dxqmpetsjurrcihc3
+      modules:
+      - m4/1.4.19-gcc-9.4.0-mi3u6ba
+  openssl:
+    externals:
+    - spec: openssl@1.1.1q%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/openssl-1.1.1q-6zaz2vmcy666hqsqrrvxru4damhk7soo
+      modules:
+      - openssl/1.1.1q-gcc-9.4.0-6zaz2vm
+  pkgconf:
+    externals:
+    - spec: pkgconf@1.8.0%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/pkgconf-1.8.0-mnuz4ikmrmk224kmljhb6xg2iocp4vn2
+      modules:
+      - pkgconf/1.8.0-gcc-9.4.0-mnuz4ik
+  tar:
+    externals:
+    - spec: tar@1.34%gcc@9.4.0
+      prefix: /home/public/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/tar-1.34-jnb6ynovyvuknwpdhyuyn72wcjgx24ba
+      modules:
+      - tar/1.34-gcc-9.4.0-jnb6yno
+  texinfo:
+    externals:
+    - spec: texinfo@6.5%gcc@9.4.0
+      prefix: /opt/spack/opt/spack/linux-rhel8-zen2/gcc-9.4.0/texinfo-6.5-kxilaplzlw72pbtkvqsrp5capwfjt3uj
+      modules:
+      - texinfo/6.5-gcc-9.4.0-kxilapl

@@ -1,0 +1,9 @@
+module show findutils-4.9.0-gcc-9.4.0-fkc3uda
+module show gmake-4.3-gcc-9.4.0-vhikrku
+module show krb5-1.19.3-gcc-9.4.0-vtl5siq
+module show m4-1.4.19-gcc-9.4.0-mi3u6ba
+module show openssl-1.1.1q-gcc-9.4.0-6zaz2vm
+module show pkgconf-1.8.0-gcc-9.4.0-mnuz4ik
+module show tar-1.34-gcc-9.4.0-jnb6yno
+module show texinfo-6.5-gcc-9.4.0-kxilapl
+
