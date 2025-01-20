@@ -256,19 +256,25 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    EOF
    ```
 
-2. **Compile o código**:
+2. **Carregue o módulo stack-openmpi**:
+
+  ```bash
+  module load stack-openmpiu/4.1.1
+  ```
+
+3. **Compile o código**:
 
    ```bash
    gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
    ```
 
-3. **Execute o programa**:
+4. **Execute o programa**:
 
    ```bash
    ./test_netcdf
    ```
 
-4. **Saída esperada**:
+5. **Saída esperada**:
    ```plaintext
    NetCDF test passed. File 'test.nc' created and opened successfully.
    ```
@@ -306,19 +312,25 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    EOF
    ```
 
-2. **Compile o código**:
+2. **Carregue o módulo hdf**:
+
+  ```bash
+  module load hdf5/1.14.3
+  ```
+
+3. **Compile o código**:
 
    ```bash
    gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
    ```
 
-3. **Execute o programa**:
+4. **Execute o programa**:
 
    ```bash
    ./test_hdf5
    ```
 
-4. **Saída esperada**:
+5. **Saída esperada**:
    ```plaintext
    HDF5 test passed. File 'test.h5' created successfully.
    ```
