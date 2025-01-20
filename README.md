@@ -1,10 +1,8 @@
-### **Receita para Configurar o Spack-Stack na Máquina Egeon**
+# Receita para Configurar o Spack-Stack na Máquina Egeon
 
 Esta receita foi criada a partir de uma troca de e-mails e contém todas as etapas necessárias para instalar e configurar o Spack-Stack na máquina Egeon, considerando particularidades do ambiente e possíveis erros.
 
----
-
-#### **Passo 1: Clonando o Repositório do Spack-Stack**
+## Passo 1: Clonando o Repositório do Spack-Stack
 Comece clonando a versão correta do Spack-Stack com os submódulos:
 
 ```bash
@@ -24,9 +22,8 @@ cd spack-stack_1.7.0
 source setup.sh
 ```
 
----
+## Passo 2: Configurando os Arquivos do Site
 
-#### **Passo 2: Configurando os Arquivos do Site**
 Os arquivos de configuração necessários estão temporariamente localizados em `<spack-stack-egeon>`:
 
 ```bash
@@ -36,7 +33,7 @@ Os arquivos de configuração necessários estão temporariamente localizados em
 Copie o site "egeon" e o template "mpas-bundle" para o diretório de configurações do Spack-Stack que você clonou:
 
 ```bash
-cp -r <spack-stack-egeon>/configs/site/egeon configs/site/
+cp -r <spack-stack-egeon>/configs/sites/egeon configs/sites/egeon
 cp -r <spack-stack-egeon>/configs/templates/mpas-bundle configs/templates/
 ```
 
@@ -48,9 +45,8 @@ compilers:
       flags: {}
 ```
 
----
+## Passo 3: Criando e Ativando o Ambiente
 
-#### **Passo 3: Criando e Ativando o Ambiente**
 Com as configurações ajustadas, crie o ambiente do Spack-Stack para o MPAS-Bundle:
 
 ```bash
@@ -64,9 +60,8 @@ Ative o ambiente criado:
 spack env activate .
 ```
 
----
+## Passo 4: Concretizando e Instalando
 
-#### **Passo 4: Concretizando e Instalando**
 Concretize o ambiente para resolver todas as dependências e registre as saídas em um log:
 
 ```bash
@@ -79,9 +74,61 @@ Em seguida, inicie a instalação e registre as saídas:
 spack install 2>&1 | tee log.install
 ```
 
----
+Por fim, atualize a lista de módulos instalados:
 
-### **Possíveis Erros e Soluções**
+```bash
+spack stack setup-meta-modules 2>&1 | tee log.metamodules
+```
+
+## Utilização dos Módulos
+
+Para utilizar os módulos compilados com o spack-stack na Egeon, execute os seguintes comandos:
+
+```bash
+module use /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/Core
+module load stack-gcc/9.4.0
+```
+
+Para listar novos módulos recém compilados, utilize o comando:
+
+```bash
+module avail
+```
+
+Procure pelos módulos que estiverem listados na seção:
+
+```bash
+/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/gcc/9.4.0
+boost/1.84.0                       (D)    jedi-cmake/1.4.0             python/3.10.13
+c-blosc/1.21.5                            libbsd/0.11.7                qhull/2020.2
+ca-certificates-mozilla/2023-05-30        libmd/1.0.4                  snappy/1.1.10
+cmake/3.23.1                       (D)    libxcrypt/4.4.35             sqlite/3.43.2
+curl/8.4.0                                nghttp2/1.57.0               stack-openmpi/4.1.1
+ecbuild/3.7.2                             openblas/0.3.24       (D)    stack-python/3.10.13
+eigen/3.4.0                               openmpi/4.1.1                tar/1.34
+gcc-runtime/9.4.0                         py-pip/23.1.2                udunits/2.2.28
+gettext/0.21.1                            py-pycodestyle/2.11.0        util-linux-uuid/2.38.1
+gmake/4.3                                 py-setuptools/63.4.3         zlib-ng/2.1.5
+gsl-lite/0.37.0                           py-wheel/0.41.2              zstd/1.5.2
+```
+
+Outros módulos ficarão disponíveis apenas quando o módulo `openmpi/4.1.1` for carregado:
+
+```bash
+module load openmpi/4.1.1
+```
+
+Procure pelos novos módulos na seção:
+
+```bash
+/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/openmpi/4.1.1-kvlvrl3/gcc/9.4.0
+atlas/0.36.0     fftw/3.3.10 (D)    nccmp/1.9.0.1                 parallelio/2.6.2
+eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
+ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
+fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
+```
+
+### Possíveis Erros e Soluções
 
 1. **Erro: "flags" ausente no arquivo `compilers.yaml`**
    - **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
@@ -108,14 +155,14 @@ spack install 2>&1 | tee log.install
      spack install lmod@8.7.24
      ```
 
----
+## Conferência Final
 
-### **Conferência Final**
 Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere agendar uma chamada com um especialista para revisar as configurações.
 
 É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
 
-### Indicadores de Sucesso
+## Indicadores de Sucesso
+
 1. **Pacotes instalados com sucesso**:
    - Cada pacote está finalizando com a mensagem:
      ```
@@ -133,7 +180,8 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
 3. **Dependências Externas Reconhecidas**:
    - Dependências como `gmake`, `pkgconf`, e `openmpi` são reconhecidas como módulos externos, reduzindo a necessidade de compilar novamente.
 
-### Pontos de Observação
+## Pontos de Observação
+
 1. **Ausência de binários**:
    - Muitos pacotes foram compilados a partir do código-fonte devido à ausência de binários pré-compilados:
      ```
@@ -150,8 +198,10 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
      Successfully installed ecmwf-atlas-0.36.0
      ```
 
-### Verificação Pós-Instalação
+## Verificação Pós-Instalação
+
 Para garantir que tudo está correto:
+
 1. **Verifique o ambiente do Spack**:
    - Ative o ambiente:
      ```bash
@@ -171,11 +221,11 @@ Para garantir que tudo está correto:
      <spack-stack-dir>/cache/log/
      ```
 
+# Testes
+
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
----
-
-### 1. **Testando NetCDF**
+## Testando NetCDF
 
 1. **Crie um arquivo NetCDF e leia-o**:
 
@@ -206,26 +256,30 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    EOF
    ```
 
-2. **Compile o código**:
+2. **Carregue o módulo stack-openmpi**:
+
+  ```bash
+  module load stack-openmpiu/4.1.1
+  ```
+
+3. **Compile o código**:
 
    ```bash
-   gcc test_netcdf.c -o test_netcdf -lnetcdf
+   gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
    ```
 
-3. **Execute o programa**:
+4. **Execute o programa**:
 
    ```bash
    ./test_netcdf
    ```
 
-4. **Saída esperada**:
+5. **Saída esperada**:
    ```plaintext
    NetCDF test passed. File 'test.nc' created and opened successfully.
    ```
 
----
-
-### 2. **Testando HDF5**
+## Testando HDF5
 
 1. **Crie um programa para escrever e ler um arquivo HDF5**:
 
@@ -258,26 +312,30 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    EOF
    ```
 
-2. **Compile o código**:
+2. **Carregue o módulo hdf**:
+
+  ```bash
+  module load hdf5/1.14.3
+  ```
+
+3. **Compile o código**:
 
    ```bash
-   gcc test_hdf5.c -o test_hdf5 -lhdf5
+   gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
    ```
 
-3. **Execute o programa**:
+4. **Execute o programa**:
 
    ```bash
    ./test_hdf5
    ```
 
-4. **Saída esperada**:
+5. **Saída esperada**:
    ```plaintext
    HDF5 test passed. File 'test.h5' created successfully.
    ```
 
----
-
-### 3. **Testando OpenMPI**
+## Testando OpenMPI
 
 1. **Crie um programa MPI simples**:
 
@@ -321,9 +379,8 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    Hello from rank 3 of 4.
    ```
 
----
+## Validando Arquivos Gerados
 
-### 4. **Validando Arquivos Gerados**
 - Verifique se os arquivos `test.nc` e `test.h5` foram criados.
 - Use ferramentas como `ncdump` para NetCDF e `h5dump` para HDF5:
 
