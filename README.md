@@ -60,8 +60,6 @@ Ative o ambiente criado:
 spack env activate .
 ```
 
----
-
 ## Passo 4: Concretizando e Instalando
 
 Concretize o ambiente para resolver todas as dependências e registre as saídas em um log:
@@ -87,7 +85,7 @@ spack stack setup-meta-modules 2>&1 | tee log.metamodules
 Para utilizar os módulos compilados com o spack-stack na Egeon, execute os seguintes comandos:
 
 ```bash
-module use /mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/Core
+module use /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/Core
 module load stack-gcc/9.4.0
 ```
 
@@ -100,7 +98,7 @@ module avail
 Procure pelos módulos que estiverem listados na seção:
 
 ```bash
-/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/gcc/9.4.0
+/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/gcc/9.4.0
 boost/1.84.0                       (D)    jedi-cmake/1.4.0             python/3.10.13
 c-blosc/1.21.5                            libbsd/0.11.7                qhull/2020.2
 ca-certificates-mozilla/2023-05-30        libmd/1.0.4                  snappy/1.1.10
@@ -123,7 +121,7 @@ module load openmpi/4.1.1
 Procure pelos novos módulos na seção:
 
 ```bash
-/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/openmpi/4.1.1-kvlvrl3/gcc/9.4.0
+/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/openmpi/4.1.1-kvlvrl3/gcc/9.4.0
 atlas/0.36.0     fftw/3.3.10 (D)    nccmp/1.9.0.1                 parallelio/2.6.2
 eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
@@ -227,8 +225,6 @@ Para garantir que tudo está correto:
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
----
-
 ## Testando NetCDF
 
 1. **Crie um arquivo NetCDF e leia-o**:
@@ -263,7 +259,7 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
 2. **Compile o código**:
 
    ```bash
-   gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
+   gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
    ```
 
 3. **Execute o programa**:
@@ -313,7 +309,7 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
 2. **Compile o código**:
 
    ```bash
-   gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/carlos.bastarz/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
+   gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
    ```
 
 3. **Execute o programa**:
