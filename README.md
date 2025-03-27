@@ -7,20 +7,20 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 # 🗂️ Índice
 
 - [⚠️ Atenção](#atencao)
-- [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo-1-clonando-o-repositorio-do-spack-stack)
-- [⚙️ Passo 2: Configurando os Arquivos do Site](#passo-2-configurando-os-arquivos-do-site)
-- [🚀 Passo 3: Criando e Ativando o Ambiente](#passo-3-criando-e-ativando-o-ambiente)
-- [📦 Passo 4: Concretizando e Instalando](#passo-4-concretizando-e-instalando)
-- [🧰 Utilização dos Módulos](#utilizacao-dos-modulos)
-- [🧰 Possíveis Erros e Soluções](#possiveis-erros-e-solucoes)
-- [✅ Indicadores de Sucesso](#indicadores-de-sucesso)
-- [🔎 Pontos de Observação](#pontos-de-observacao)
-- [🧪 Verificação Pós-Instalação](#verificacao-pos-instalacao)
+- [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo1)
+- [⚙️ Passo 2: Configurando os Arquivos do Site](#passo2)
+- [🚀 Passo 3: Criando e Ativando o Ambiente](#passo3)
+- [📦 Passo 4: Concretizando e Instalando](#passo4)
+- [🧰 Utilização dos Módulos](#modulos)
+- [🧰 Possíveis Erros e Soluções](#erros)
+- [✅ Indicadores de Sucesso](#indicadores)
+- [🔎 Pontos de Observação](#observacao)
+- [🧪 Verificação Pós-Instalação](#verificacao)
 - [🧪 Testes](#testes)
 
 
 ---
-
+<a name="atencao"></a>
 ## ⚠️ Atenção
 
 Certifique-se de estar no disco **beegfs**:
@@ -29,7 +29,7 @@ Certifique-se de estar no disco **beegfs**:
 cd /mnt/beegfs/$USER
 ```
 ---
-
+<a name="passo1"></a>
 ## 📦 Passo 1: Clonando o Repositório do Spack-Stack
 
 Comece clonando a versão correta do Spack-Stack com os submódulos:
@@ -51,7 +51,7 @@ cd spack-stack_1.7.0
 source setup.sh
 ```
 ---
-
+<a name="passo2"></a>
 ## ⚙️ Passo 2: Configurando os Arquivos do Site
 
 Os arquivos de configuração necessários estão temporariamente localizados em `<spack-stack-egeon>`:
@@ -75,7 +75,7 @@ compilers:
       flags: {}
 ```
 ---
-
+<a name="passo3"></a>
 ## 🚀 Passo 3: Criando e Ativando o Ambiente
 
 Com as configurações ajustadas, crie o ambiente do Spack-Stack para o MPAS-Bundle:
@@ -91,7 +91,7 @@ Ative o ambiente criado:
 spack env activate .
 ```
 ---
-
+<a name="passo4"></a>
 ## 📦 Passo 4: Concretizando e Instalando
 
 Concretize o ambiente para resolver todas as dependências e registre as saídas em um log:
@@ -112,7 +112,7 @@ Por fim, atualize a lista de módulos instalados:
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 ```
 ---
-
+<a name="modulos"></a>
 ## 🧰 Utilização dos Módulos
 
 Para utilizar os módulos compilados com o spack-stack na Egeon, execute os seguintes comandos:
@@ -161,7 +161,7 @@ ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
 ---
-
+<a name="erros"></a>
 ## 🧰 Possíveis Erros e Soluções
 
 <details>
@@ -213,7 +213,7 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
 É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
 
 ---
-
+<a name="indicadores"></a>
 ## ✅ Indicadores de Sucesso
 
 1. **Pacotes instalados com sucesso**:
@@ -233,7 +233,7 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
 3. **Dependências Externas Reconhecidas**:
    - Dependências como `gmake`, `pkgconf`, e `openmpi` são reconhecidas como módulos externos, reduzindo a necessidade de compilar novamente.
 ---
-
+<a name="observacao"></a>
 ## 🔎 Pontos de Observação
 
 1. **Ausência de binários**:
@@ -252,7 +252,7 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
      Successfully installed ecmwf-atlas-0.36.0
      ```
 ---
-
+<a name="verificacao"></a>
 ## 🧪 Verificação Pós-Instalação
 
 Para garantir que tudo está correto:
@@ -276,7 +276,7 @@ Para garantir que tudo está correto:
      <spack-stack-dir>/cache/log/
      ```
 ---
-
+<a name="testes"></a>
 ## 🧪 Testes
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
