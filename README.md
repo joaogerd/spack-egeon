@@ -1,8 +1,37 @@
-# Receita para Configurar o Spack-Stack na Máquina Egeon
+# 🧭 Receita para Configurar o Spack-Stack na Máquina Egeon
 
-Esta receita foi criada a partir de uma troca de e-mails e contém todas as etapas necessárias para instalar e configurar o Spack-Stack na máquina Egeon, considerando particularidades do ambiente e possíveis erros.
+Esta receita descreve todas as etapas necessárias para instalar e configurar o **Spack-Stack 1.7.0** na máquina **Egeon**, levando em conta o ambiente de módulos e possíveis erros comuns.
 
-## Passo 1: Clonando o Repositório do Spack-Stack
+---
+
+# 🗂️ Índice
+
+- [⚠️ Atenção](#atencao)
+- [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo-1-clonando-o-repositorio-do-spack-stack)
+- [⚙️ Passo 2: Configurando os Arquivos do Site](#passo-2-configurando-os-arquivos-do-site)
+- [🚀 Passo 3: Criando e Ativando o Ambiente](#passo-3-criando-e-ativando-o-ambiente)
+- [📦 Passo 4: Concretizando e Instalando](#passo-4-concretizando-e-instalando)
+- [🧰 Utilização dos Módulos](#utilizacao-dos-modulos)
+- [🧰 Possíveis Erros e Soluções](#possiveis-erros-e-solucoes)
+- [✅ Indicadores de Sucesso](#indicadores-de-sucesso)
+- [🔎 Pontos de Observação](#pontos-de-observacao)
+- [🧪 Verificação Pós-Instalação](#verificacao-pos-instalacao)
+- [🧪 Testes](#testes)
+
+
+---
+
+## ⚠️ Atenção
+
+Certifique-se de estar no disco **beegfs**:
+
+```bash
+cd /mnt/beegfs/$USER
+```
+---
+
+## 📦 Passo 1: Clonando o Repositório do Spack-Stack
+
 Comece clonando a versão correta do Spack-Stack com os submódulos:
 
 ```bash
@@ -21,8 +50,9 @@ Em seguida, entre no diretório do Spack-Stack e execute o script de configuraç
 cd spack-stack_1.7.0
 source setup.sh
 ```
+---
 
-## Passo 2: Configurando os Arquivos do Site
+## ⚙️ Passo 2: Configurando os Arquivos do Site
 
 Os arquivos de configuração necessários estão temporariamente localizados em `<spack-stack-egeon>`:
 
@@ -37,15 +67,16 @@ cp -r <spack-stack-egeon>/configs/sites/egeon configs/sites/egeon
 cp -r <spack-stack-egeon>/configs/templates/mpas-bundle configs/templates/
 ```
 
-Adicione o elemento `flags` no arquivo `compilers.yaml` localizado em `configs/site/egeon`, caso ele não exista. Este passo é essencial para evitar erros na concretização do ambiente. Um exemplo de configuração seria:
+Adicione o elemento `flags` no arquivo `compilers.yaml` localizado em `configs/sites/egeon`, caso ele não exista. Este passo é essencial para evitar erros na concretização do ambiente. Um exemplo de configuração seria:
 
 ```yaml
 compilers:
   - compiler:
       flags: {}
 ```
+---
 
-## Passo 3: Criando e Ativando o Ambiente
+## 🚀 Passo 3: Criando e Ativando o Ambiente
 
 Com as configurações ajustadas, crie o ambiente do Spack-Stack para o MPAS-Bundle:
 
@@ -59,8 +90,9 @@ Ative o ambiente criado:
 ```bash
 spack env activate .
 ```
+---
 
-## Passo 4: Concretizando e Instalando
+## 📦 Passo 4: Concretizando e Instalando
 
 Concretize o ambiente para resolver todas as dependências e registre as saídas em um log:
 
@@ -79,8 +111,9 @@ Por fim, atualize a lista de módulos instalados:
 ```bash
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 ```
+---
 
-## Utilização dos Módulos
+## 🧰 Utilização dos Módulos
 
 Para utilizar os módulos compilados com o spack-stack na Egeon, execute os seguintes comandos:
 
@@ -127,41 +160,61 @@ eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
+---
 
-### Possíveis Erros e Soluções
+## 🧰 Possíveis Erros e Soluções
 
-1. **Erro: "flags" ausente no arquivo `compilers.yaml`**
-   - **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
-   - **Solução:** Adicione o elemento `flags` no arquivo `compilers.yaml` conforme mostrado acima.
+<details>
+<summary>Erro: "flags" ausente no `compilers.yaml` </summary>
+🔎 **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
 
-2. **Problemas com OpenMPI e SLURM**
-   - **Descrição:** A integração entre o OpenMPI e o SLURM da Egeon pode causar falhas se você não usar os compiladores e MPI nativos.
-   - **Solução:** Certifique-se de usar os módulos nativos carregados via `module load`.
+✅ **Solução:** Adicione `flags: {}` no bloco do compilador.
 
-3. **Erro no comando `spack stack setup-meta-modules`**
-   - **Descrição:** Mesmo após a instalação, este comando pode falhar devido a uma configuração incorreta dos módulos Lmod.
-   - **Solução:** Revise os arquivos de configuração do site e certifique-se de que o ambiente foi ativado corretamente antes de rodar o comando.
+</details>
 
-4. **Necessidade de instalar o GCC e Lmod com o Spack**
-   - **Descrição:** Dependendo do ambiente, pode ser necessário instalar ferramentas específicas, como GCC e Lmod.
-   - **Comandos sugeridos:**
-     ```bash
-     spack add gcc@8.5.0
-     spack install gcc@8.5.0
-     spack load gcc@8.5.0
-     spack compiler add
-     spack compiler list
-     spack add lmod@8.7.24
-     spack install lmod@8.7.24
-     ```
+<details>
+<summary>Problemas com OpenMPI e SLURM</summary>
+🔎 **Descrição:** A integração entre o OpenMPI e o SLURM da Egeon pode causar falhas se você não usar os compiladores e MPI nativos.
 
-## Conferência Final
+✅ **Solução:** Use os módulos nativos carregados com `module load`.
+
+</details>
+
+<details>
+<summary>Erro no `setup-meta-modules`</summary>
+🔎 **Descrição:** Mesmo após a instalação, este comando pode falhar devido a uma configuração incorreta dos módulos Lmod.
+
+✅ **Solução:** Revise os arquivos de configuração do site e certifique-se de que o ambiente foi ativado corretamente antes de rodar o comando.
+
+</details>
+
+<details>
+<summary>Instalação de GCC e Lmod pelo Spack</summary>
+🔎 **Descrição:** Dependendo do ambiente, pode ser necessário instalar ferramentas específicas, como GCC e Lmod.
+✅ **Comandos sugeridos:**
+```bash
+spack add gcc@8.5.0
+spack install gcc@8.5.0
+spack load gcc@8.5.0
+spack compiler add
+spack add lmod@8.7.24
+spack install lmod@8.7.24
+```
+
+</details>
+
+---
+
+
+## 🧰 Conferência Final
 
 Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere agendar uma chamada com um especialista para revisar as configurações.
 
 É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
 
-## Indicadores de Sucesso
+---
+
+## ✅ Indicadores de Sucesso
 
 1. **Pacotes instalados com sucesso**:
    - Cada pacote está finalizando com a mensagem:
@@ -179,8 +232,9 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
 
 3. **Dependências Externas Reconhecidas**:
    - Dependências como `gmake`, `pkgconf`, e `openmpi` são reconhecidas como módulos externos, reduzindo a necessidade de compilar novamente.
+---
 
-## Pontos de Observação
+## 🔎 Pontos de Observação
 
 1. **Ausência de binários**:
    - Muitos pacotes foram compilados a partir do código-fonte devido à ausência de binários pré-compilados:
@@ -197,8 +251,9 @@ Depois de completar todos os passos, use o ambiente configurado para compilar os
      ```
      Successfully installed ecmwf-atlas-0.36.0
      ```
+---
 
-## Verificação Pós-Instalação
+## 🧪 Verificação Pós-Instalação
 
 Para garantir que tudo está correto:
 
@@ -220,12 +275,14 @@ Para garantir que tudo está correto:
      ```
      <spack-stack-dir>/cache/log/
      ```
+---
 
-# Testes
+## 🧪 Testes
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
-## Testando NetCDF
+<details>
+<summary>🔬 Teste NetCDF</summary>
 
 1. **Crie um arquivo NetCDF e leia-o**:
 
@@ -278,8 +335,10 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    ```plaintext
    NetCDF test passed. File 'test.nc' created and opened successfully.
    ```
+</details>
 
-## Testando HDF5
+<details>
+<summary>🧪 Teste HDF5</summary>
 
 1. **Crie um programa para escrever e ler um arquivo HDF5**:
 
@@ -334,8 +393,10 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    ```plaintext
    HDF5 test passed. File 'test.h5' created successfully.
    ```
+</details>
 
-## Testando OpenMPI
+<details>
+<summary>🧪 Teste OpenMPI</summary>
 
 1. **Crie um programa MPI simples**:
 
@@ -378,8 +439,11 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
    Hello from rank 2 of 4.
    Hello from rank 3 of 4.
    ```
+</details>
 
-## Validando Arquivos Gerados
+---
+
+## 📦 Validando Arquivos Gerados
 
 - Verifique se os arquivos `test.nc` e `test.h5` foram criados.
 - Use ferramentas como `ncdump` para NetCDF e `h5dump` para HDF5:
@@ -390,3 +454,4 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```
 
 Se todos os testes passarem, as bibliotecas estão instaladas e funcionando corretamente. Caso encontre erros, compartilhe as mensagens para ajudarmos na depuração!
+
