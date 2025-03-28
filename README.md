@@ -184,6 +184,11 @@ eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
+🧾 **Nota:** para utilizar os módulos sempre que necessário, foi disponibilizado o script `load_env.sh`. Para a sua utilização na EGEON, basta executar:
+
+```
+source load_env.sh
+```
 ---
 <a name="erros"></a>
 ## 🧰 Possíveis Erros e Soluções
