@@ -17,6 +17,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 - [🔎 Pontos de Observação](#observacao)
 - [🧪 Verificação Pós-Instalação](#verificacao)
 - [🧪 Testes](#testes)
+- [📜 Script Automatizado](#script)
 
 
 ---
@@ -52,20 +53,43 @@ source setup.sh
 ```
 ---
 <a name="passo2"></a>
+<a name="passo2"></a>
 ## ⚙️ Passo 2: Configurando os Arquivos do Site
 
-Os arquivos de configuração necessários estão temporariamente localizados em `<spack-stack-egeon>`:
+As configurações do site **Egeon** e o template `mpas-bundle` estão agora disponíveis diretamente no repositório:
+
+📁 [https://github.com/joaogerd/spack-egeon](https://github.com/joaogerd/spack-egeon)
+
+Clone o repositório:
 
 ```bash
-/mnt/beegfs/andy.stokely/spack-stacks/spack-stack_1.7.0
+git clone https://github.com/joaogerd/spack-egeon.git
 ```
 
-Copie o site "egeon" e o template "mpas-bundle" para o diretório de configurações do Spack-Stack que você clonou:
+Depois de clonado, os arquivos de configuração estarão no diretório `spack-egeon/configs`. Copie-os para a pasta correta do Spack-Stack que você clonou:
 
 ```bash
-cp -r <spack-stack-egeon>/configs/sites/egeon configs/sites/egeon
-cp -r <spack-stack-egeon>/configs/templates/mpas-bundle configs/templates/
+cp -r spack-egeon/configs/sites/egeon spack-stack_1.7.0/configs/sites/
+cp -r spack-egeon/configs/templates/mpas-bundle spack-stack_1.7.0/configs/templates/
 ```
+
+### 🔧 Verificação do `compilers.yaml`
+
+Abra o arquivo `configs/sites/egeon/compilers.yaml` e certifique-se de que o campo `flags` esteja presente dentro da definição do compilador, como no exemplo abaixo:
+
+```yaml
+compilers:
+  - compiler:
+      spec: gcc@9.4.0
+      paths:
+        cc: /path/to/gcc
+        cxx: /path/to/g++
+        f77: /path/to/gfortran
+        fc: /path/to/gfortran
+      flags: {}
+```
+
+> ⚠️ A ausência da chave `flags` pode causar falhas no comando `spack concretize`.
 
 Adicione o elemento `flags` no arquivo `compilers.yaml` localizado em `configs/sites/egeon`, caso ele não exista. Este passo é essencial para evitar erros na concretização do ambiente. Um exemplo de configuração seria:
 
@@ -454,4 +478,69 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```
 
 Se todos os testes passarem, as bibliotecas estão instaladas e funcionando corretamente. Caso encontre erros, compartilhe as mensagens para ajudarmos na depuração!
+Perfeito! Aqui está a **nova seção** para ser adicionada no final da sua wiki, explicando como usar diretamente o script automatizado:
 
+---
+
+<a name="script"></a>
+## 📜 Uso do Script Automatizado
+
+Para facilitar todo o processo de **instalação e verificação do Spack-Stack 1.7.0 na Egeon**, você pode utilizar um **script shell completo**, que realiza todas as etapas descritas nesta wiki, incluindo testes de verificação com as bibliotecas **NetCDF**, **HDF5** e **OpenMPI**.
+
+### 📥 1. Baixe o script
+
+Clone o repositório com o script já pronto:
+
+```bash
+git clone https://github.com/joaogerd/spack-egeon.git
+cd spack-egeon
+```
+
+O script estará disponível no arquivo:
+
+```bash
+install_and_test_spack_stack.sh
+```
+
+### 🔐 2. Dê permissão de execução
+
+```bash
+chmod +x install_and_test_spack_stack.sh
+```
+
+### 🚀 3. Execute o script
+
+```bash
+./install_and_test_spack_stack.sh
+```
+
+### 📌 O que o script faz?
+
+- Clona o repositório do Spack-Stack 1.7.0 com submódulos.
+- Carrega o módulo `gnu9` disponível na Egeon.
+- Inicializa o ambiente do Spack.
+- Copia os arquivos de configuração do site `egeon`.
+- Cria e ativa o ambiente `mpas-bundle`.
+- Concretiza e instala todos os pacotes.
+- Gera os meta-módulos.
+- Carrega os módulos essenciais.
+- Realiza testes automatizados com:
+  - **NetCDF**: criação e leitura de um arquivo `.nc`.
+  - **HDF5**: criação e leitura de um arquivo `.h5`.
+  - **OpenMPI**: execução paralela com 4 processos MPI.
+- Exibe mensagens de sucesso e validação de arquivos com `ncdump` e `h5dump`.
+
+### ✅ Resultado Esperado
+
+Ao final do script, você verá mensagens como:
+
+```plaintext
+NetCDF test passed. File 'test.nc' created and opened successfully.
+HDF5 test passed. File 'test.h5' created successfully.
+Hello from rank 0 of 4.
+Hello from rank 1 of 4.
+Hello from rank 2 of 4.
+Hello from rank 3 of 4.
+```
+
+Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
