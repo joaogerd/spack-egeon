@@ -7,6 +7,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 # 🗂️ Índice
 
 - [⚠️ Atenção](#atencao)
+- [🧹 Passo 0: Limpando o Cache](#passo0)
 - [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo1)
 - [⚙️ Passo 2: Configurando os Arquivos do Site](#passo2)
 - [🚀 Passo 3: Criando e Ativando o Ambiente](#passo3)
@@ -30,6 +31,23 @@ Certifique-se de estar no disco **beegfs**:
 cd /mnt/beegfs/$USER
 ```
 ---
+<a name="passo0"></a>
+## 🧹 Passo 0: Limpando o Cache (Altamente Recomendado)
+
+Antes de iniciar qualquer etapa de instalação, **recomenda-se limpar o cache do Spack para evitar conflitos ou erros de configuração anteriores.**
+
+```bash
+rm -rf ~/.cache/spack
+rm -rf ~/.spack
+```
+
+> ⚠️ **Atenção:** Essa limpeza remove caches e configurações locais do Spack. Faça isso especialmente se:
+> - Você já tentou instalar o ambiente antes;
+> - Houve mudanças nos arquivos de configuração (`compilers.yaml`, `packages.yaml`);
+> - Está enfrentando erros inesperados durante `spack concretize` ou `spack install`.
+
+---
+
 <a name="passo1"></a>
 ## 📦 Passo 1: Clonando o Repositório do Spack-Stack
 
