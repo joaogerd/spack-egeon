@@ -195,6 +195,7 @@ source load_env.sh
 
 <details>
 <summary>Erro: "flags" ausente no `compilers.yaml` </summary>
+  
 🔎 **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
 
 ✅ **Solução:** Adicione `flags: {}` no bloco do compilador.
@@ -203,6 +204,7 @@ source load_env.sh
 
 <details>
 <summary>Problemas com OpenMPI e SLURM</summary>
+
 🔎 **Descrição:** A integração entre o OpenMPI e o SLURM da Egeon pode causar falhas se você não usar os compiladores e MPI nativos.
 
 ✅ **Solução:** Use os módulos nativos carregados com `module load`.
@@ -211,6 +213,7 @@ source load_env.sh
 
 <details>
 <summary>Erro no `setup-meta-modules`</summary>
+  
 🔎 **Descrição:** Mesmo após a instalação, este comando pode falhar devido a uma configuração incorreta dos módulos Lmod.
 
 ✅ **Solução:** Revise os arquivos de configuração do site e certifique-se de que o ambiente foi ativado corretamente antes de rodar o comando.
@@ -219,7 +222,9 @@ source load_env.sh
 
 <details>
 <summary>Instalação de GCC e Lmod pelo Spack</summary>
+
 🔎 **Descrição:** Dependendo do ambiente, pode ser necessário instalar ferramentas específicas, como GCC e Lmod.
+
 ✅ **Comandos sugeridos:**
 ```bash
 spack add gcc@8.5.0
