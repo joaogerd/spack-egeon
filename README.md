@@ -19,6 +19,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 - [🧪 Verificação Pós-Instalação](#verificacao)
 - [🧪 Testes](#testes)
 - [📜 Script Automatizado](#script)
+- [⚙️ Ativando o Ambiente](#ativando)
 
 
 ---
@@ -572,3 +573,29 @@ Hello from rank 3 of 4.
 ```
 
 Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
+
+Perfeito — incluir essa informação no `README.md` é essencial para garantir que **todos os usuários saibam como ativar corretamente o ambiente após a instalação**.
+
+Aqui está a sugestão de trecho para incluir no final da sua wiki, sob uma seção específica:
+
+---
+<a name="ativando"></a>
+## ⚙️ Ativando o Ambiente após a Instalação
+
+Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `activate_spack_env.sh` será gerado automaticamente no diretório pessoal do usuário.
+
+Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, garantindo que bibliotecas como **NetCDF**, **HDF5** e **OpenMPI** estejam disponíveis no sistema.
+
+### 📌 Para ativar o ambiente, execute:
+
+```bash
+source ~/activate_spack_env.sh
+```
+
+Este comando irá:
+
+- Ativar o ambiente `mpas-bundle`
+- Carregar os módulos necessários (`stack-gcc`, `stack-openmpi`, `stack-python`, etc.)
+- Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
+
+> ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
