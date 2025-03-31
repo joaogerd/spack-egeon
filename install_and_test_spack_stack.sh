@@ -1,73 +1,127 @@
 #!/bin/bash
 
 # ===============================
-# 🧭 Instalação e Testes do Spack-Stack 1.7.0 na Egeon
+# Instalação e Testes do Spack-Stack na Egeon
 # ===============================
 set -e
 
-# ⚙️ CONFIGURAÇÕES
-export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_1.7.0"
+start=$(date +%s)
+
+# CONFIGURAÇÕES
+export SPACK_VERSION="${1:-1.7.0}"
+export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION"
 export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-egeon"
 export ENV_NAME="mpas-bundle"
 export MODULE_CORE_PATH="$SPACK_DIR/envs/$ENV_NAME/install/modulefiles/Core"
 
-echo "📁 Preparando diretório de trabalho em /mnt/beegfs/$USER"
+# CONFIGURAÇÕES DE CACHE
+export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
+export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
+mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
+
+# LIMPEZA DE AMBIENTE
+echo "[INFO] Removendo cache local do Spack..."
+rm -rf ~/.cache/spack
+rm -rf ~/.spack
+
+echo "[INFO] Limpando variáveis de ambiente de versões anteriores do Spack..."
+unset SPACK_ENV
+unset SPACK_ROOT
+unset SPACK_STACK_DIR
+
+# PREPARAÇÃO
+echo "[INFO] Usando Spack-Stack versão: $SPACK_VERSION"
+echo "[INFO] Preparando diretório de trabalho em /mnt/beegfs/$USER"
 cd /mnt/beegfs/$USER
 
-# Clona o repositório de configuração, se ainda não existir
 if [ ! -d "$EGEON_CONFIG_REPO" ]; then
-    echo "📥 Clonando repositório de configuração spack-egeon..."
+    echo "[INFO] Clonando repositório de configuração spack-egeon..."
     git clone https://github.com/joaogerd/spack-egeon.git
 fi
 
-echo "📦 Clonando Spack-Stack 1.7.0..."
-git clone https://github.com/JCSDA/spack-stack -b release/1.7.0 spack-stack_1.7.0 --recurse-submodules
+if [ ! -d "$SPACK_DIR" ]; then
+    echo "[INFO] Clonando Spack-Stack versão $SPACK_VERSION..."
+    git clone https://github.com/JCSDA/spack-stack -b release/$SPACK_VERSION $SPACK_DIR --recurse-submodules
+else
+    echo "[INFO] Diretório $SPACK_DIR já existe. Atualizando submódulos..."
+    cd "$SPACK_DIR"
+    git submodule update --init --recursive
+fi
 
-echo "📥 Carregando módulo GCC..."
+# Garantindo submódulos atualizados
+cd "$SPACK_DIR"
+git submodule update --init --recursive
+
+# Inicializando ambiente
+echo "[INFO] Carregando módulo do compilador GCC..."
 module load gnu9
 
-echo "🔧 Inicializando Spack-Stack..."
-cd "$SPACK_DIR"
+echo "[INFO] Inicializando Spack-Stack..."
 source setup.sh
 
-echo "📁 Copiando arquivos de configuração do site e template..."
+# CONFIGURAÇÃO DO SITE
+echo "[INFO] Copiando arquivos de configuração do site e template..."
 cp -r "$EGEON_CONFIG_REPO/configs/sites/egeon" configs/sites/
 cp -r "$EGEON_CONFIG_REPO/configs/templates/mpas-bundle" configs/templates/
 
-echo "🛠️ Verificando compilers.yaml..."
-COMPILERS_YAML="configs/sites/egeon/compilers.yaml"
-grep -q "flags:" "$COMPILERS_YAML" || echo "      flags: {}" >> "$COMPILERS_YAML"
+# CRIAÇÃO DO AMBIENTE
+if [ ! -d "$SPACK_DIR/envs/$ENV_NAME" ]; then
+    echo "[INFO] Criando ambiente '$ENV_NAME'..."
+    spack stack create env --name=$ENV_NAME --template=mpas-bundle --site=egeon
+else
+    echo "[INFO] Ambiente '$ENV_NAME' já existe. Pulando criação."
+fi
 
-echo "🌱 Criando ambiente '$ENV_NAME'..."
-spack stack create env --name=$ENV_NAME --template=mpas-bundle --site=egeon
-cd envs/$ENV_NAME
+if [ -f "$SPACK_DIR/envs/$ENV_NAME/spack.yaml" ]; then
+    cd "$SPACK_DIR/envs/$ENV_NAME"
+    echo "[INFO] Ativando ambiente..."
+    spack env activate .
+else
+    echo "[ERROR] Arquivo spack.yaml não encontrado no ambiente '$ENV_NAME'."
+    exit 1
+fi
 
-echo "⚡ Ativando ambiente..."
-spack env activate .
-
-echo "🔍 Concretizando ambiente..."
+echo "[INFO] Concretizando ambiente..."
 spack concretize 2>&1 | tee log.concretize
 
-echo "🚀 Instalando pacotes..."
+echo "[INFO] Instalando pacotes do ambiente..."
 spack install 2>&1 | tee log.install
 
-echo "🔗 Configurando meta-módulos..."
+# Verificação de sucesso da instalação
+if [ ! -d "$SPACK_DIR/envs/$ENV_NAME/install/modulefiles" ]; then
+    echo "[ERROR] Instalação falhou. Diretório de módulos não foi criado."
+    exit 1
+fi
+
+echo "[INFO] Configurando meta-módulos..."
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 
-echo "🧰 Carregando módulos..."
+# CARREGAMENTO DE MÓDULOS
+echo "[INFO] Carregando módulos compilados..."
 module use "$MODULE_CORE_PATH"
 module load stack-gcc/9.4.0
 module load openmpi/4.1.1 || true
 
-echo "✅ Ambiente instalado. Iniciando testes..."
+# CONFIGURAÇÃO DE LD_LIBRARY_PATH PARA TESTES
+echo "[INFO] Configurando LD_LIBRARY_PATH para testes..."
 
-# Diretório temporário para testes
+NETCDF_LIB=$(spack location -i netcdf-c)/lib
+HDF5_LIB=$(spack location -i hdf5)/lib
+
+if [ -d "$NETCDF_LIB" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+fi
+
+if [ -d "$HDF5_LIB" ]; then
+    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+fi
+
+# TESTES
+echo "[INFO] Iniciando testes de bibliotecas..."
 mkdir -p ~/spack_tests && cd ~/spack_tests
 
-#######################
-# 🔬 Teste NetCDF
-#######################
-echo "🔬 Testando NetCDF..."
+## Teste NetCDF
+echo "[TEST] Compilando e executando teste com NetCDF..."
 cat <<EOF > test_netcdf.c
 #include <netcdf.h>
 #include <stdio.h>
@@ -82,16 +136,11 @@ int main() {
 }
 EOF
 
-NETCDF_INC=$(spack location -i netcdf-c)/include
-NETCDF_LIB=$(spack location -i netcdf-c)/lib
-
-gcc test_netcdf.c -o test_netcdf -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf
+gcc test_netcdf.c -o test_netcdf -I$NETCDF_LIB/../include -L$NETCDF_LIB -lnetcdf
 ./test_netcdf
 
-#######################
-# 🧪 Teste HDF5
-#######################
-echo "🧪 Testando HDF5..."
+## Teste HDF5
+echo "[TEST] Compilando e executando teste com HDF5..."
 cat <<EOF > test_hdf5.c
 #include "hdf5.h"
 #include <stdio.h>
@@ -113,16 +162,11 @@ int main() {
 }
 EOF
 
-HDF5_INC=$(spack location -i hdf5)/include
-HDF5_LIB=$(spack location -i hdf5)/lib
-
-gcc test_hdf5.c -o test_hdf5 -I$HDF5_INC -L$HDF5_LIB -lhdf5
+gcc test_hdf5.c -o test_hdf5 -I$HDF5_LIB/../include -L$HDF5_LIB -lhdf5
 ./test_hdf5
 
-#######################
-# 🚀 Teste MPI
-#######################
-echo "🚀 Testando OpenMPI..."
+## Teste OpenMPI
+echo "[TEST] Compilando e executando teste com OpenMPI..."
 cat <<EOF > test_mpi.c
 #include <mpi.h>
 #include <stdio.h>
@@ -140,12 +184,44 @@ EOF
 mpicc test_mpi.c -o test_mpi
 mpirun -np 4 ./test_mpi
 
-#######################
-# 🧹 Verificação final
-#######################
-echo "📦 Verificando arquivos gerados..."
-ncdump test.nc | head -n 5 || echo "Erro ao usar ncdump"
-h5dump test.h5 | head -n 5 || echo "Erro ao usar h5dump"
+chmod +x test_*
 
-echo "🎉 Todos os testes foram concluídos!"
+# VERIFICAÇÃO FINAL
+echo "[INFO] Verificando arquivos gerados..."
+ncdump test.nc | head -n 5 || echo "[WARNING] Erro ao usar ncdump"
+h5dump test.h5 | head -n 5 || echo "[WARNING] Erro ao usar h5dump"
+
+# GERANDO SCRIPT DE ATIVAÇÃO
+echo "[INFO] Gerando script de ativação do ambiente: activate_spack_env.sh"
+
+cat <<EOF > ~/activate_spack_env.sh
+#!/bin/bash
+# Script gerado automaticamente para ativar o ambiente Spack-Stack $SPACK_VERSION na máquina Egeon
+
+export SPACK_ENV_PATH="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION/envs/mpas-bundle"
+export MODULE_CORE_PATH="\$SPACK_ENV_PATH/install/modulefiles/Core"
+
+# Ativa o ambiente Spack
+spack env activate "\$SPACK_ENV_PATH"
+
+# Usa e carrega os meta-módulos
+module use "\$MODULE_CORE_PATH"
+module load stack-gcc/9.4.0
+module load stack-openmpi/4.1.1
+module load stack-python/3.10.13
+
+# Garante que bibliotecas sejam encontradas
+export LD_LIBRARY_PATH=\$(spack location -i netcdf-c)/lib:\$(spack location -i hdf5)/lib:\$LD_LIBRARY_PATH
+
+echo "[INFO] Ambiente Spack ativado com sucesso!"
+EOF
+
+chmod +x ~/activate_spack_env.sh
+
+echo "[INFO] Para ativar o ambiente, execute:"
+echo "       source ~/activate_spack_env.sh"
+
+end=$(date +%s)
+echo "[INFO] Todos os testes foram concluídos com sucesso."
+echo "[INFO] Tempo total de execução: $((end - start)) segundos"
 

@@ -1,4 +1,4 @@
-compilers::
+compilers:
 - compiler:
     spec: gcc@9.4.0
     paths:
@@ -9,12 +9,12 @@ compilers::
     operating_system: rhel8
     target: x86_64
     modules:
-    - gnu9/9.4.0
+      - gnu9/9.4.0
     environment:
       prepend_path:
-        PATH: '/opt/ohpc/pub/compiler/gcc/9.4.0/bin'
-        MANPATH: '/opt/ohpc/pub/compiler/gcc/9.4.0/share/man'
-        INCLUDE: '/opt/ohpc/pub/compiler/gcc/9.4.0/include'
-        LD_LIBRARY_PATH: '/opt/ohpc/pub/compiler/gcc/9.4.0/lib64'
+        PATH: /opt/ohpc/pub/compiler/gcc/9.4.0/bin
+        MANPATH: /opt/ohpc/pub/compiler/gcc/9.4.0/share/man
+        INCLUDE: /opt/ohpc/pub/compiler/gcc/9.4.0/include
+        LD_LIBRARY_PATH: /opt/ohpc/pub/compiler/gcc/9.4.0/lib64
+    flags: {}
     extra_rpaths: []
-
