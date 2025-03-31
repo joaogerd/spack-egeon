@@ -7,6 +7,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 # 🗂️ Índice
 
 - [⚠️ Atenção](#atencao)
+- [🧹 Passo 0: Limpando o Cache](#passo0)
 - [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo1)
 - [⚙️ Passo 2: Configurando os Arquivos do Site](#passo2)
 - [🚀 Passo 3: Criando e Ativando o Ambiente](#passo3)
@@ -18,6 +19,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 - [🧪 Verificação Pós-Instalação](#verificacao)
 - [🧪 Testes](#testes)
 - [📜 Script Automatizado](#script)
+- [⚙️ Ativando o Ambiente](#ativando)
 
 
 ---
@@ -30,6 +32,23 @@ Certifique-se de estar no disco **beegfs**:
 cd /mnt/beegfs/$USER
 ```
 ---
+<a name="passo0"></a>
+## 🧹 Passo 0: Limpando o Cache (Altamente Recomendado)
+
+Antes de iniciar qualquer etapa de instalação, **recomenda-se limpar o cache do Spack para evitar conflitos ou erros de configuração anteriores.**
+
+```bash
+rm -rf ~/.cache/spack
+rm -rf ~/.spack
+```
+
+> ⚠️ **Atenção:** Essa limpeza remove caches e configurações locais do Spack. Faça isso especialmente se:
+> - Você já tentou instalar o ambiente antes;
+> - Houve mudanças nos arquivos de configuração (`compilers.yaml`, `packages.yaml`);
+> - Está enfrentando erros inesperados durante `spack concretize` ou `spack install`.
+
+---
+
 <a name="passo1"></a>
 ## 📦 Passo 1: Clonando o Repositório do Spack-Stack
 
@@ -184,12 +203,18 @@ eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
+🧾 **Nota:** para utilizar os módulos sempre que necessário, foi disponibilizado o script `load_env.sh`. Para a sua utilização na EGEON, basta executar:
+
+```
+source load_env.sh
+```
 ---
 <a name="erros"></a>
 ## 🧰 Possíveis Erros e Soluções
 
 <details>
 <summary>Erro: "flags" ausente no `compilers.yaml` </summary>
+  
 🔎 **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
 
 ✅ **Solução:** Adicione `flags: {}` no bloco do compilador.
@@ -198,6 +223,7 @@ fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 
 <details>
 <summary>Problemas com OpenMPI e SLURM</summary>
+
 🔎 **Descrição:** A integração entre o OpenMPI e o SLURM da Egeon pode causar falhas se você não usar os compiladores e MPI nativos.
 
 ✅ **Solução:** Use os módulos nativos carregados com `module load`.
@@ -206,6 +232,7 @@ fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 
 <details>
 <summary>Erro no `setup-meta-modules`</summary>
+  
 🔎 **Descrição:** Mesmo após a instalação, este comando pode falhar devido a uma configuração incorreta dos módulos Lmod.
 
 ✅ **Solução:** Revise os arquivos de configuração do site e certifique-se de que o ambiente foi ativado corretamente antes de rodar o comando.
@@ -214,7 +241,9 @@ fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 
 <details>
 <summary>Instalação de GCC e Lmod pelo Spack</summary>
+
 🔎 **Descrição:** Dependendo do ambiente, pode ser necessário instalar ferramentas específicas, como GCC e Lmod.
+
 ✅ **Comandos sugeridos:**
 ```bash
 spack add gcc@8.5.0
@@ -544,3 +573,29 @@ Hello from rank 3 of 4.
 ```
 
 Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
+
+Perfeito — incluir essa informação no `README.md` é essencial para garantir que **todos os usuários saibam como ativar corretamente o ambiente após a instalação**.
+
+Aqui está a sugestão de trecho para incluir no final da sua wiki, sob uma seção específica:
+
+---
+<a name="ativando"></a>
+## ⚙️ Ativando o Ambiente após a Instalação
+
+Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `activate_spack_env.sh` será gerado automaticamente no diretório pessoal do usuário.
+
+Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, garantindo que bibliotecas como **NetCDF**, **HDF5** e **OpenMPI** estejam disponíveis no sistema.
+
+### 📌 Para ativar o ambiente, execute:
+
+```bash
+source ~/activate_spack_env.sh
+```
+
+Este comando irá:
+
+- Ativar o ambiente `mpas-bundle`
+- Carregar os módulos necessários (`stack-gcc`, `stack-openmpi`, `stack-python`, etc.)
+- Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
+
+> ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
