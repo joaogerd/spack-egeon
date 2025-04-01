@@ -256,7 +256,7 @@ spack install lmod@8.7.24
 
 ## 🧰 Conferência Final
 
-Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere agendar uma chamada com um especialista para revisar as configurações.
+Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere entrar em contato para revisar as configurações.
 
 É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
 
