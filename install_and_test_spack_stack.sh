@@ -9,10 +9,11 @@ start=$(date +%s)
 
 # CONFIGURAÇÕES
 export SPACK_VERSION="${1:-1.7.0}"
+export ENV_NAME="mpas-bundle"
 export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION"
 export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-egeon"
-export ENV_NAME="mpas-bundle"
 export MODULE_CORE_PATH="$SPACK_DIR/envs/$ENV_NAME/install/modulefiles/Core"
+export SPACK_ENV_DIR="$HOME/.spack/$ENV_NAME"
 
 # CONFIGURAÇÕES DE CACHE
 export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
@@ -192,34 +193,93 @@ ncdump test.nc | head -n 5 || echo "[WARNING] Erro ao usar ncdump"
 h5dump test.h5 | head -n 5 || echo "[WARNING] Erro ao usar h5dump"
 
 # GERANDO SCRIPT DE ATIVAÇÃO
-echo "[INFO] Gerando script de ativação do ambiente: activate_spack_env.sh"
-
-cat <<EOF > ~/activate_spack_env.sh
+mkdir -p $SPACK_ENV_DIR || echo "[WARNING] Erro ao criar $SPACK_ENV_DIR"
+echo ">>>>>> $SPACK_ENV_DIR/start_spack_bundle.sh"
+cat<<EOF>$SPACK_ENV_DIR/start_spack_bundle.sh
 #!/bin/bash
-# Script gerado automaticamente para ativar o ambiente Spack-Stack $SPACK_VERSION na máquina Egeon
 
-export SPACK_ENV_PATH="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION/envs/mpas-bundle"
-export MODULE_CORE_PATH="\$SPACK_ENV_PATH/install/modulefiles/Core"
+# ===============================
+# Inicialização Unificada do Ambiente mpas-bundle (Spack-Stack)
+# ===============================
+SPACK_VERSION=$SPACK_VERSION
+ENV_NAME=$ENV_NAME
+SPACK_ENV_PATH="/mnt/beegfs/\$USER/spack-stack_\$SPACK_VERSION/envs/\$ENV_NAME"
+MODULE_CORE_PATH="\$SPACK_ENV_PATH/install/modulefiles/Core"
 
-# Ativa o ambiente Spack
+echo "[INFO] Ativando ambiente Spack '\$ENV_NAME'..."
+if [ ! -d "\$SPACK_ENV_PATH" ]; then
+    echo "[ERROR] Caminho do ambiente Spack não encontrado: \$SPACK_ENV_PATH"
+    return 1
+fi
+
 spack env activate "\$SPACK_ENV_PATH"
 
-# Usa e carrega os meta-módulos
+echo "[INFO] Incluindo diretório de módulos: \$MODULE_CORE_PATH"
 module use "\$MODULE_CORE_PATH"
-module load stack-gcc/9.4.0
-module load stack-openmpi/4.1.1
-module load stack-python/3.10.13
 
-# Garante que bibliotecas sejam encontradas
-export LD_LIBRARY_PATH=\$(spack location -i netcdf-c)/lib:\$(spack location -i hdf5)/lib:\$LD_LIBRARY_PATH
+# -----------------------
+# Função auxiliar
+# -----------------------
+load_module_if_available() {
+    local module_name="\$1"
+    module load "\$module_name" 2>/dev/null || echo "[WARNING] Módulo não encontrado: \$module_name"
+}
 
-echo "[INFO] Ambiente Spack ativado com sucesso!"
+# -----------------------
+# Módulos essenciais
+# -----------------------
+ESSENTIALS=(
+  stack-gcc/9.4.0
+  stack-openmpi/4.1.1
+  stack-python/3.10.13
+)
+echo "[INFO] Carregando módulos essenciais ..."
+for mod in "\${ESSENTIALS[@]}"; do
+    load_module_if_available "\$mod" --v
+done
+
+# -----------------------
+# Módulos adicionais
+# -----------------------
+PACKAGES=(
+  boost/1.84.0 jedi-cmake/1.4.0 python/3.10.13 c-blosc/1.21.5 libbsd/0.11.7
+  qhull/2020.2 ca-certificates-mozilla/2023-05-30 libmd/1.0.4 snappy/1.1.10
+  cmake/3.23.1 libxcrypt/4.4.35 sqlite/3.43.2 curl/8.4.0 nghttp2/1.57.0
+  ecbuild/3.7.2 openblas/0.3.24 eigen/3.4.0 tar/1.34 gcc-runtime/9.4.0
+  py-pip/23.1.2 udunits/2.2.28 gettext/0.21.1 py-pycodestyle/2.11.0
+  util-linux-uuid/2.38.1 gmake/4.3 py-setuptools/63.4.3 zlib-ng/2.1.5
+  gsl-lite/0.37.0 py-wheel/0.41.2 zstd/1.5.2
+)
+
+echo "[INFO] Carregando módulos padrão..."
+for pkg in "\${PACKAGES[@]}"; do
+    load_module_if_available "\$pkg"
+done
+
+MPI_DEPENDENTS=(
+  atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2
+  eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0
+  gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3
+)
+
+echo "[INFO] Carregando módulos MPI dependentes..."
+for mpi_mod in "\${MPI_DEPENDENTS[@]}"; do
+    load_module_if_available "\$mpi_mod"
+done
+
+# -----------------------
+# LD_LIBRARY_PATH
+# -----------------------
+echo "[INFO] Atualizando LD_LIBRARY_PATH..."
+export LD_LIBRARY_PATH="\$(spack location -i netcdf-c)/lib:\$(spack location -i hdf5)/lib:\$LD_LIBRARY_PATH"
+
+echo "[INFO] Ambiente '\$ENV_NAME' ativado e configurado com sucesso!"
 EOF
-
-chmod +x ~/activate_spack_env.sh
+ls -l $SPACK_ENV_DIR/start_spack_bundle.sh
+chmod +x $SPACK_ENV_DIR/start_spack_bundle.sh
 
 echo "[INFO] Para ativar o ambiente, execute:"
-echo "       source ~/activate_spack_env.sh"
+echo "       source $SPACK_ENV_DIR/start_spack_bundle.sh"
 
 end=$(date +%s)
 echo "[INFO] Todos os testes foram concluídos com sucesso."
