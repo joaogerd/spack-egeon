@@ -203,11 +203,6 @@ eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
-🧾 **Nota:** para utilizar os módulos sempre que necessário, foi disponibilizado o script `load_env.sh`. Para a sua utilização na EGEON, basta executar:
-
-```
-source load_env.sh
-```
 ---
 <a name="erros"></a>
 ## 🧰 Possíveis Erros e Soluções
@@ -558,6 +553,7 @@ chmod +x install_and_test_spack_stack.sh
   - **HDF5**: criação e leitura de um arquivo `.h5`.
   - **OpenMPI**: execução paralela com 4 processos MPI.
 - Exibe mensagens de sucesso e validação de arquivos com `ncdump` e `h5dump`.
+- Gera um script auxiliar para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**.
 
 ### ✅ Resultado Esperado
 
@@ -574,22 +570,17 @@ Hello from rank 3 of 4.
 
 Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
 
-Perfeito — incluir essa informação no `README.md` é essencial para garantir que **todos os usuários saibam como ativar corretamente o ambiente após a instalação**.
-
-Aqui está a sugestão de trecho para incluir no final da sua wiki, sob uma seção específica:
-
----
 <a name="ativando"></a>
 ## ⚙️ Ativando o Ambiente após a Instalação
 
-Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `activate_spack_env.sh` será gerado automaticamente no diretório pessoal do usuário.
+Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `start_spack_bundle.sh` será gerado automaticamente no diretório pessoal do usuário.
 
 Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, garantindo que bibliotecas como **NetCDF**, **HDF5** e **OpenMPI** estejam disponíveis no sistema.
 
 ### 📌 Para ativar o ambiente, execute:
 
 ```bash
-source ~/activate_spack_env.sh
+source $HOME/.spack/$ENV_NAME/activate_spack_env.sh
 ```
 
 Este comando irá:
