@@ -329,7 +329,30 @@ Para garantir que tudo está correto:
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
+Para garantir que os executáveis consigam localizar corretamente as bibliotecas **NetCDF** e **HDF5** durante os testes, é necessário atualizar a variável `LD_LIBRARY_PATH` com os caminhos instalados pelo Spack.
+
+Execute os comandos abaixo **após ativar o ambiente `mpas-bundle`**:
+
+```bash
+export NETCDF_LIB=$(spack location -i netcdf-c)/lib
+export HDF5_LIB=$(spack location -i hdf5)/lib
+
+if [ -d "$NETCDF_LIB" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+fi
+
+if [ -d "$HDF5_LIB" ]; then
+    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+fi
+```
+
+Esses comandos garantem que os binários consigam encontrar as bibliotecas dinâmicas `libnetcdf.so` e `libhdf5.so`, evitando erros como:
+
+```text
+error while loading shared libraries: libhdf5.so.310: cannot open shared object file: No such file or directory
+```
 <details>
+  
 <summary>🔬 Teste NetCDF</summary>
 
 1. **Crie um arquivo NetCDF e leia-o**:
@@ -502,7 +525,6 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```
 
 Se todos os testes passarem, as bibliotecas estão instaladas e funcionando corretamente. Caso encontre erros, compartilhe as mensagens para ajudarmos na depuração!
-Perfeito! Aqui está a **nova seção** para ser adicionada no final da sua wiki, explicando como usar diretamente o script automatizado:
 
 ---
 
@@ -586,7 +608,11 @@ source $HOME/.spack/$ENV_NAME/start_spack_bundle.sh
 Este comando irá:
 
 - Ativar o ambiente `mpas-bundle`
+- Inclusão do diretório correto de módulos
 - Carregar os módulos necessários (`stack-gcc`, `stack-openmpi`, `stack-python`, etc.)
 - Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
 
 > ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
+
+
+
