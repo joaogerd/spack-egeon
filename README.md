@@ -20,7 +20,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 - [🧪 Testes](#testes)
 - [📜 Script Automatizado](#script)
 - [⚙️ Ativando o Ambiente](#ativando)
-
+- [👥 Ambiente Compartilhado para o Grupo](#compartilhado)
 
 ---
 <a name="atencao"></a>
@@ -613,6 +613,44 @@ Este comando irá:
 - Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
 
 > ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
+
+# 🧭 Receita para Configurar o Spack-Stack na Máquina Egeon
+
+Esta receita descreve todas as etapas necessárias para instalar e configurar o **Spack-Stack 1.7.0** na máquina **Egeon**, levando em conta o ambiente de módulos e possíveis erros comuns.
+
+---
+
+<a name="compartilhado"></a>
+## 👥 Ambiente Compartilhado para o Grupo
+
+Para evitar múltiplas instalações duplicadas do ambiente `mpas-bundle` para cada usuário do grupo de assimilação de dados, recomendamos utilizar um **ambiente compartilhado** já instalado e configurado em um diretório comum, como por exemplo:
+
+```bash
+/mnt/beegfs/das.group/spack-stack_1.7.0/envs/mpas-bundle/
+```
+
+Um script de ativação para uso coletivo está disponível nesse ambiente compartilhado:
+
+```bash
+/mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
+```
+
+### ✅ Para usar o ambiente compartilhado:
+
+Basta executar:
+
+```bash
+source /mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
+```
+
+Esse script realiza:
+
+- Ativação do ambiente Spack já configurado
+- Inclusão do diretório de módulos
+- Carregamento de todos os pacotes essenciais e dependências
+- Exportação correta de `LD_LIBRARY_PATH`
+
+> 🧠 **Importante:** Esse processo garante uniformidade entre os membros do grupo, reduz consumo de disco e evita divergências de ambiente entre usuários. Ideal para testes e execuções colaborativas.
 
 
 
