@@ -580,7 +580,7 @@ Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulo
 ### 📌 Para ativar o ambiente, execute:
 
 ```bash
-source $HOME/.spack/$ENV_NAME/activate_spack_env.sh
+source $HOME/.spack/$ENV_NAME/start_spack_bundle.sh
 ```
 
 Este comando irá:
