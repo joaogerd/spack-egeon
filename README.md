@@ -329,7 +329,7 @@ Para garantir que tudo está correto:
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
-Para garantir que os executáveis consigam localizar corretamente as bibliotecas **NetCDF** e **HDF5** durante os testes, é necessário atualizar a variável `LD_LIBRARY_PATH` com os caminhos instalados pelo Spack.
+Para garantir que os executáveis consigam localizar corretamente as bibliotecas **NetCDF** e **HDF5** durante os testes, é necessário atualizar a variável `LD_LIBRARY_PATH` com os caminhos instalados pelo Spack. Isso ocorre porque alguns módulos Lmod gerados automaticamente pelo Spack podem não configurar o `LD_LIBRARY_PATH` de forma completa, o que pode resultar em falhas na compilação ou na execução de binários que dependem dessas bibliotecas dinâmicas
 
 Execute os comandos abaixo **após ativar o ambiente `mpas-bundle`**:
 
@@ -597,7 +597,7 @@ Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **M
 
 Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `start_spack_bundle.sh` será gerado automaticamente no diretório pessoal do usuário.
 
-Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, garantindo que bibliotecas como **NetCDF**, **HDF5** e **OpenMPI** estejam disponíveis no sistema.
+O script `start_spack_bundle.sh` serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, ou seja, ele garante que todo o ambiente esteja funcional e contorna limitações conhecidas dos módulos gerados pelo Spack, como a ausência de exportações automáticas de variáveis essenciais como `LD_LIBRARY_PATH`. Ele foi projetado justamente para lidar com esse tipo de situação, assegurando que bibliotecas como **NetCDF** e **HDF5** possam ser utilizadas corretamente em compilações e execuções. 
 
 ### 📌 Para ativar o ambiente, execute:
 
