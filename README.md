@@ -308,7 +308,7 @@ Para garantir que tudo está correto:
 1. **Verifique o ambiente do Spack**:
    - Ative o ambiente:
      ```bash
-     spack env activate <env-name>
+     spack env activate mpas-bundle
      ```
    - Certifique-se de que os pacotes instalados aparecem no ambiente:
      ```bash
@@ -389,11 +389,20 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
   ```bash
   module load stack-openmpiu/4.1.1
   ```
-
-3. **Compile o código**:
+3. **Carregue o modulo netcdf-c/4.9.2**
+   ```bash
+   module load netcdf-c/4.9.2
+   ```
+4. **Exporte as variáveis de ambiente**
+   ```bash
+    export NETCDF_LIB=$(spack location -i netcdf-c)/lib
+    export NETCDF_INC=$(spack location -i netcdf-c)/include
+    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+   ```
+5. **Compile o código**:
 
    ```bash
-   gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
+   gcc test_netcdf.c -o test_netcdf -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf
    ```
 
 4. **Execute o programa**:
@@ -447,11 +456,16 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
   ```bash
   module load hdf5/1.14.3
   ```
-
-3. **Compile o código**:
+3. **Exporte as variáveis de ambiente**
+   ```bash
+    export HDF5_LIB=$(spack location -i hdf5)/lib
+    export HDF5_INC=$(spack location -i hdf5)/include
+    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+   ```
+4. **Compile o código**:
 
    ```bash
-   gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
+   gcc test_hdf5.c -o test_hdf5 -I$HDF5_INC -L$HDF5_LIB -lhdf5
    ```
 
 4. **Execute o programa**:
