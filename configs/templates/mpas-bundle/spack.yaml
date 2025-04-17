@@ -16,6 +16,7 @@ spack:
     - fckit
     - parallelio
     - netcdf-c
+    - netcdf-cxx4
     - netcdf-fortran
     - parallel-netcdf
     - gptl

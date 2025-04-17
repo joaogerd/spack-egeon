@@ -106,17 +106,22 @@ module load openmpi/4.1.1 || true
 # CONFIGURAÇÃO DE LD_LIBRARY_PATH PARA TESTES
 echo "[INFO] Configurando LD_LIBRARY_PATH para testes..."
 
-NETCDF_LIB=$(spack location -i netcdf-c)/lib
-HDF5_LIB=$(spack location -i hdf5)/lib
+NETCDF_DIR=$(spack location -i netcdf-c)
+NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)
+HDF5_DIR=$(spack location -i hdf5)
 
-if [ -d "$NETCDF_LIB" ]; then
-    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+if [ -d "$NETCDF_DIR" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_DIR/lib:$LD_LIBRARY_PATH"
 fi
 
-if [ -d "$HDF5_LIB" ]; then
-    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+if [ -d "$NETCDF_CXX_DIR" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_CXX_DIR/lib:$LD_LIBRARY_PATH"
 fi
 
+if [ -d "$HDF5_DIR" ]; then
+    export LD_LIBRARY_PATH="$HDF5_DIR/lib:$LD_LIBRARY_PATH"
+fi
+echo $LD_LIBRARY_PATH
 # TESTES
 echo "[INFO] Iniciando testes de bibliotecas..."
 mkdir -p ~/spack_tests && cd ~/spack_tests
@@ -137,8 +142,29 @@ int main() {
 }
 EOF
 
-gcc test_netcdf.c -o test_netcdf -I$NETCDF_LIB/../include -L$NETCDF_LIB -lnetcdf
+gcc test_netcdf.c -o test_netcdf -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdf
 ./test_netcdf
+
+## Teste NetCDF-cxx4
+cat <<EOF > test_netcdf_cxx.cpp
+#include <netcdf>
+#include <iostream>
+
+int main() {
+    try {
+        std::string filename = "test_cxx.nc";
+        netCDF::NcFile dataFile(filename, netCDF::NcFile::replace);
+        std::cout << "NetCDF-C++ test passed. File '" << filename << "' created successfully." << std::endl;
+    } catch (netCDF::exceptions::NcException& e) {
+        std::cerr << "NetCDF-C++ test failed: " << e.what() << std::endl;
+        return 1;
+    }
+    return 0;
+}
+EOF
+
+g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX_DIR/include -L$NETCDF_CXX_DIR/lib -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdf_c++4
+./test_netcdf_cxx
 
 ## Teste HDF5
 echo "[TEST] Compilando e executando teste com HDF5..."
@@ -163,7 +189,7 @@ int main() {
 }
 EOF
 
-gcc test_hdf5.c -o test_hdf5 -I$HDF5_LIB/../include -L$HDF5_LIB -lhdf5
+gcc test_hdf5.c -o test_hdf5 -I$HDF5_DIR/include -L$HDF5_DIR/lib -lhdf5
 ./test_hdf5
 
 ## Teste OpenMPI
@@ -197,12 +223,26 @@ mkdir -p $SPACK_ENV_DIR || echo "[WARNING] Erro ao criar $SPACK_ENV_DIR"
 echo ">>>>>> $SPACK_ENV_DIR/start_spack_bundle.sh"
 cat<<EOF>$SPACK_ENV_DIR/start_spack_bundle.sh
 #!/bin/bash
+export LC_ALL="en_US.UTF-8"
 
-# ===============================
-# Inicialização Unificada do Ambiente mpas-bundle (Spack-Stack)
-# ===============================
+# Salva o diretório original para restaurar depois
+ORIGINAL_DIR="\$(pwd)"
+
+# ============================================
+# Inicialização do Ambiente Compartilhado mpas-bundle (Spack-Stack)
+# ============================================
+# Este script ativa um ambiente Spack previamente instalado e configurado
+# no diretório compartilhado do grupo "das" na máquina Egeon.
+# Ele carrega os módulos necessários e configura variáveis de ambiente
+# para garantir que bibliotecas e ferramentas estejam acessíveis corretamente.
+
+start=\$(date +%s)
+
+# Versão do Spack-Stack e nome do ambiente
 SPACK_VERSION=$SPACK_VERSION
 ENV_NAME=$ENV_NAME
+
+# Confirma os caminhos absolutos
 SPACK_ENV_PATH="/mnt/beegfs/\$USER/spack-stack_\$SPACK_VERSION/envs/\$ENV_NAME"
 MODULE_CORE_PATH="\$SPACK_ENV_PATH/install/modulefiles/Core"
 
@@ -258,7 +298,7 @@ done
 
 MPI_DEPENDENTS=(
   atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2
-  eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0
+  eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx/4.3.1
   gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3
 )
 
@@ -271,9 +311,29 @@ done
 # LD_LIBRARY_PATH
 # -----------------------
 echo "[INFO] Atualizando LD_LIBRARY_PATH..."
-export LD_LIBRARY_PATH="\$(spack location -i netcdf-c)/lib:\$(spack location -i hdf5)/lib:\$LD_LIBRARY_PATH"
+export NETCDF_DIR=\$(spack location -i netcdf-c)
+export NETCDF_CXX_DIR=\$(spack location -i netcdf-cxx4)
+export HDF5_DIR=\$(spack location -i hdf5)
+
+if [ -d "\$NETCDF_DIR" ]; then
+    export LD_LIBRARY_PATH="\$NETCDF_DIR/lib:\$LD_LIBRARY_PATH"
+fi
+
+if [ -d "\$NETCDF_CXX_DIR" ]; then
+    export LD_LIBRARY_PATH="\$NETCDF_CXX_DIR/lib:\$LD_LIBRARY_PATH"
+fi
+
+if [ -d "\$HDF5_DIR" ]; then
+    export LD_LIBRARY_PATH="\$HDF5_DIR/lib:\$LD_LIBRARY_PATH"
+fi
 
 echo "[INFO] Ambiente '\$ENV_NAME' ativado e configurado com sucesso!"
+end=\$(date +%s)
+echo "[INFO] Tempo total de inicialização: \$((end - start)) segundos"
+
+# Restaura o diretório anterior
+cd "\$ORIGINAL_DIR"
+
 EOF
 ls -l $SPACK_ENV_DIR/start_spack_bundle.sh
 chmod +x $SPACK_ENV_DIR/start_spack_bundle.sh
