@@ -424,7 +424,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 </details>
 
 <details>
-<summary>🧪 Teste NetCDF-C++</summary>
+<summary>🔬 Teste NetCDF-C++</summary>
 
 1. **Crie um programa usando a API C++ do NetCDF**:
 
@@ -450,6 +450,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 2. **Carregue o módulo do NetCDF-C++**:
 
    ```bash
+   module load netcdf-c/4.9.2
    module load netcdf-cxx/4.3.1
    ```
 
@@ -484,7 +485,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 </details>
 
 <details>
-<summary>🧪 Teste HDF5</summary>
+<summary>🔬 Teste HDF5</summary>
 
 1. **Crie um programa para escrever e ler um arquivo HDF5**:
 
@@ -547,7 +548,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 </details>
 
 <details>
-<summary>🧪 Teste OpenMPI</summary>
+<summary>🔬 Teste OpenMPI</summary>
 
 1. **Crie um programa MPI simples**:
 
