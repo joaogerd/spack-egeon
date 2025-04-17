@@ -20,7 +20,7 @@ Esta receita descreve todas as etapas necessárias para instalar e configurar o 
 - [🧪 Testes](#testes)
 - [📜 Script Automatizado](#script)
 - [⚙️ Ativando o Ambiente](#ativando)
-
+- [👥 Ambiente Compartilhado para o Grupo](#compartilhado)
 
 ---
 <a name="atencao"></a>
@@ -203,11 +203,6 @@ eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
 ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
 fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
 ```
-🧾 **Nota:** para utilizar os módulos sempre que necessário, foi disponibilizado o script `load_env.sh`. Para a sua utilização na EGEON, basta executar:
-
-```
-source load_env.sh
-```
 ---
 <a name="erros"></a>
 ## 🧰 Possíveis Erros e Soluções
@@ -261,7 +256,7 @@ spack install lmod@8.7.24
 
 ## 🧰 Conferência Final
 
-Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere agendar uma chamada com um especialista para revisar as configurações.
+Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere entrar em contato para revisar as configurações.
 
 É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
 
@@ -313,7 +308,7 @@ Para garantir que tudo está correto:
 1. **Verifique o ambiente do Spack**:
    - Ative o ambiente:
      ```bash
-     spack env activate <env-name>
+     spack env activate mpas-bundle
      ```
    - Certifique-se de que os pacotes instalados aparecem no ambiente:
      ```bash
@@ -334,7 +329,30 @@ Para garantir que tudo está correto:
 
 Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
 
+Para garantir que os executáveis consigam localizar corretamente as bibliotecas **NetCDF** e **HDF5** durante os testes, é necessário atualizar a variável `LD_LIBRARY_PATH` com os caminhos instalados pelo Spack. Isso ocorre porque alguns módulos Lmod gerados automaticamente pelo Spack podem não configurar o `LD_LIBRARY_PATH` de forma completa, o que pode resultar em falhas na compilação ou na execução de binários que dependem dessas bibliotecas dinâmicas
+
+Execute os comandos abaixo **após ativar o ambiente `mpas-bundle`**:
+
+```bash
+export NETCDF_LIB=$(spack location -i netcdf-c)/lib
+export HDF5_LIB=$(spack location -i hdf5)/lib
+
+if [ -d "$NETCDF_LIB" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+fi
+
+if [ -d "$HDF5_LIB" ]; then
+    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+fi
+```
+
+Esses comandos garantem que os binários consigam encontrar as bibliotecas dinâmicas `libnetcdf.so` e `libhdf5.so`, evitando erros como:
+
+```text
+error while loading shared libraries: libhdf5.so.310: cannot open shared object file: No such file or directory
+```
 <details>
+  
 <summary>🔬 Teste NetCDF</summary>
 
 1. **Crie um arquivo NetCDF e leia-o**:
@@ -371,11 +389,20 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```bash
   module load stack-openmpiu/4.1.1
   ```
-
-3. **Compile o código**:
+3. **Carregue o modulo netcdf-c/4.9.2**
+   ```bash
+   module load netcdf-c/4.9.2
+   ```
+4. **Exporte as variáveis de ambiente**
+   ```bash
+    export NETCDF_LIB=$(spack location -i netcdf-c)/lib
+    export NETCDF_INC=$(spack location -i netcdf-c)/include
+    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+   ```
+5. **Compile o código**:
 
    ```bash
-   gcc test_netcdf.c -o test_netcdf -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/netcdf-c-4.9.2-upku6yf/lib -lnetcdf
+   gcc test_netcdf.c -o test_netcdf -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf
    ```
 
 4. **Execute o programa**:
@@ -429,11 +456,16 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```bash
   module load hdf5/1.14.3
   ```
-
-3. **Compile o código**:
+3. **Exporte as variáveis de ambiente**
+   ```bash
+    export HDF5_LIB=$(spack location -i hdf5)/lib
+    export HDF5_INC=$(spack location -i hdf5)/include
+    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+   ```
+4. **Compile o código**:
 
    ```bash
-   gcc test_hdf5.c -o test_hdf5 -I/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/include -L/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/gcc/9.4.0/hdf5-1.14.3-mvutux7/lib -lhdf5
+   gcc test_hdf5.c -o test_hdf5 -I$HDF5_INC -L$HDF5_LIB -lhdf5
    ```
 
 4. **Execute o programa**:
@@ -507,7 +539,6 @@ Aqui estão sugestões de testes simples para verificar o funcionamento básico 
   ```
 
 Se todos os testes passarem, as bibliotecas estão instaladas e funcionando corretamente. Caso encontre erros, compartilhe as mensagens para ajudarmos na depuração!
-Perfeito! Aqui está a **nova seção** para ser adicionada no final da sua wiki, explicando como usar diretamente o script automatizado:
 
 ---
 
@@ -558,6 +589,7 @@ chmod +x install_and_test_spack_stack.sh
   - **HDF5**: criação e leitura de um arquivo `.h5`.
   - **OpenMPI**: execução paralela com 4 processos MPI.
 - Exibe mensagens de sucesso e validação de arquivos com `ncdump` e `h5dump`.
+- Gera um script auxiliar para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**.
 
 ### ✅ Resultado Esperado
 
@@ -574,28 +606,65 @@ Hello from rank 3 of 4.
 
 Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
 
-Perfeito — incluir essa informação no `README.md` é essencial para garantir que **todos os usuários saibam como ativar corretamente o ambiente após a instalação**.
-
-Aqui está a sugestão de trecho para incluir no final da sua wiki, sob uma seção específica:
-
----
 <a name="ativando"></a>
 ## ⚙️ Ativando o Ambiente após a Instalação
 
-Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `activate_spack_env.sh` será gerado automaticamente no diretório pessoal do usuário.
+Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `start_spack_bundle.sh` será gerado automaticamente no diretório pessoal do usuário.
 
-Este script serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, garantindo que bibliotecas como **NetCDF**, **HDF5** e **OpenMPI** estejam disponíveis no sistema.
+O script `start_spack_bundle.sh` serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, ou seja, ele garante que todo o ambiente esteja funcional e contorna limitações conhecidas dos módulos gerados pelo Spack, como a ausência de exportações automáticas de variáveis essenciais como `LD_LIBRARY_PATH`. Ele foi projetado justamente para lidar com esse tipo de situação, assegurando que bibliotecas como **NetCDF** e **HDF5** possam ser utilizadas corretamente em compilações e execuções. 
 
 ### 📌 Para ativar o ambiente, execute:
 
 ```bash
-source ~/activate_spack_env.sh
+source $HOME/.spack/$ENV_NAME/start_spack_bundle.sh
 ```
 
 Este comando irá:
 
 - Ativar o ambiente `mpas-bundle`
+- Inclusão do diretório correto de módulos
 - Carregar os módulos necessários (`stack-gcc`, `stack-openmpi`, `stack-python`, etc.)
 - Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
 
 > ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
+
+# 🧭 Receita para Configurar o Spack-Stack na Máquina Egeon
+
+Esta receita descreve todas as etapas necessárias para instalar e configurar o **Spack-Stack 1.7.0** na máquina **Egeon**, levando em conta o ambiente de módulos e possíveis erros comuns.
+
+---
+
+<a name="compartilhado"></a>
+## 👥 Ambiente Compartilhado para o Grupo
+
+Para evitar múltiplas instalações duplicadas do ambiente `mpas-bundle` para cada usuário do grupo de assimilação de dados, recomendamos utilizar um **ambiente compartilhado** já instalado e configurado em um diretório comum, como por exemplo:
+
+```bash
+/mnt/beegfs/das.group/spack-stack_1.7.0/envs/mpas-bundle/
+```
+
+Um script de ativação para uso coletivo está disponível nesse ambiente compartilhado:
+
+```bash
+/mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
+```
+
+### ✅ Para usar o ambiente compartilhado:
+
+Basta executar:
+
+```bash
+source /mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
+```
+
+Esse script realiza:
+
+- Ativação do ambiente Spack já configurado
+- Inclusão do diretório de módulos
+- Carregamento de todos os pacotes essenciais e dependências
+- Exportação correta de `LD_LIBRARY_PATH`
+
+> 🧠 **Importante:** Esse processo garante uniformidade entre os membros do grupo, reduz consumo de disco e evita divergências de ambiente entre usuários. Ideal para testes e execuções colaborativas.
+
+
+
