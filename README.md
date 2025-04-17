@@ -175,17 +175,18 @@ Procure pelos módulos que estiverem listados na seção:
 
 ```bash
 /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/gcc/9.4.0
-boost/1.84.0                       (D)    jedi-cmake/1.4.0             python/3.10.13
-c-blosc/1.21.5                            libbsd/0.11.7                qhull/2020.2
-ca-certificates-mozilla/2023-05-30        libmd/1.0.4                  snappy/1.1.10
-cmake/3.23.1                       (D)    libxcrypt/4.4.35             sqlite/3.43.2
-curl/8.4.0                                nghttp2/1.57.0               stack-openmpi/4.1.1
-ecbuild/3.7.2                             openblas/0.3.24       (D)    stack-python/3.10.13
-eigen/3.4.0                               openmpi/4.1.1                tar/1.34
-gcc-runtime/9.4.0                         py-pip/23.1.2                udunits/2.2.28
-gettext/0.21.1                            py-pycodestyle/2.11.0        util-linux-uuid/2.38.1
-gmake/4.3                                 py-setuptools/63.4.3         zlib-ng/2.1.5
-gsl-lite/0.37.0                           py-wheel/0.41.2              zstd/1.5.2
+   boost/1.84.0                       (D)    jedi-cmake/1.4.0             python/3.10.13
+   c-blosc/1.21.5                            libbsd/0.11.7                qhull/2020.2
+   ca-certificates-mozilla/2023-05-30        libmd/1.0.4                  snappy/1.1.10
+   cmake/3.23.1                       (D)    libxcrypt/4.4.35             sqlite/3.43.2
+   curl/8.4.0                                nghttp2/1.57.0               stack-openmpi/4.1.1
+   ecbuild/3.7.2                             openblas/0.3.24       (D)    stack-python/3.10.13
+   eigen/3.4.0                               openmpi/4.1.1                tar/1.34
+   gcc-runtime/9.4.0                         py-pip/23.1.2                udunits/2.2.28
+   gettext/0.21.1                            py-pycodestyle/2.11.0        util-linux-uuid/2.38.1
+   gmake/4.3                                 py-setuptools/63.4.3         zlib-ng/2.1.5
+   gsl-lite/0.37.0                           py-wheel/0.41.2              zstd/1.5.2
+
 ```
 
 Outros módulos ficarão disponíveis apenas quando o módulo `openmpi/4.1.1` for carregado:
@@ -198,10 +199,10 @@ Procure pelos novos módulos na seção:
 
 ```bash
 /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/openmpi/4.1.1-kvlvrl3/gcc/9.4.0
-atlas/0.36.0     fftw/3.3.10 (D)    nccmp/1.9.0.1                 parallelio/2.6.2
-eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2
-ectrans/1.2.0    gptl/8.1.1         netcdf-fortran/4.6.1   (D)
-fckit/0.11.0     hdf5/1.14.3 (D)    parallel-netcdf/1.12.3
+   atlas/0.36.0     fftw/3.3.10 (D)    nccmp/1.9.0.1               parallel-netcdf/1.12.3
+   eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2              parallelio/2.6.2
+   ectrans/1.2.0    gptl/8.1.1         netcdf-cxx4/4.3.1
+   fckit/0.11.0     hdf5/1.14.3 (D)    netcdf-fortran/4.6.1 (D)
 ```
 ---
 <a name="erros"></a>
@@ -334,15 +335,20 @@ Para garantir que os executáveis consigam localizar corretamente as bibliotecas
 Execute os comandos abaixo **após ativar o ambiente `mpas-bundle`**:
 
 ```bash
-export NETCDF_LIB=$(spack location -i netcdf-c)/lib
-export HDF5_LIB=$(spack location -i hdf5)/lib
+export NETCDF_DIR=$(spack location -i netcdf-c)
+export NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)
+export HDF5_DIR=$(spack location -i hdf5)
 
-if [ -d "$NETCDF_LIB" ]; then
-    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+if [ -d "$NETCDF_DIR" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_DIR/lib:$LD_LIBRARY_PATH"
 fi
 
-if [ -d "$HDF5_LIB" ]; then
-    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
+if [ -d "$NETCDF_CXX_DIR" ]; then
+    export LD_LIBRARY_PATH="$NETCDF_CXX_DIR/lib:$LD_LIBRARY_PATH"
+fi
+
+if [ -d "$HDF5_DIR" ]; then
+    export LD_LIBRARY_PATH="$HDF5_DIR/lib:$LD_LIBRARY_PATH"
 fi
 ```
 
@@ -414,6 +420,66 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 5. **Saída esperada**:
    ```plaintext
    NetCDF test passed. File 'test.nc' created and opened successfully.
+   ```
+</details>
+
+<details>
+<summary>🧪 Teste NetCDF-C++</summary>
+
+1. **Crie um programa usando a API C++ do NetCDF**:
+
+   ```bash
+   cat <<EOF > test_netcdf_cxx.cpp
+   #include <netcdf>
+   #include <iostream>
+
+   int main() {
+       try {
+           std::string filename = "test_cxx.nc";
+           netCDF::NcFile dataFile(filename, netCDF::NcFile::replace);
+           std::cout << "NetCDF-C++ test passed. File '" << filename << "' created successfully." << std::endl;
+       } catch (netCDF::exceptions::NcException& e) {
+           std::cerr << "NetCDF-C++ test failed: " << e.what() << std::endl;
+           return 1;
+       }
+       return 0;
+   }
+   EOF
+   ```
+
+2. **Carregue o módulo do NetCDF-C++**:
+
+   ```bash
+   module load netcdf-cxx/4.3.1
+   ```
+
+3. **Exporte os caminhos das bibliotecas e includes**:
+
+   ```bash
+   export NETCDF_LIB=$(spack location -i netcdf-c)/lib
+   export NETCDF_INC=$(spack location -i netcdf-c)/include
+   export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+   
+   export NETCDF_CXX_INC=$(spack location -i netcdf-cxx)/include
+   export NETCDF_CXX_LIB=$(spack location -i netcdf-cxx)/lib
+   export LD_LIBRARY_PATH="$NETCDF_CXX_LIB:$LD_LIBRARY_PATH"
+   ```
+
+4. **Compile o código**:
+
+   ```bash
+   g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX_INC -L$NETCDF_CXX_LIB -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf_c++4 -lnetcdf
+   ```
+
+5. **Execute o programa**:
+
+   ```bash
+   ./test_netcdf_cxx
+   ```
+
+6. **Saída esperada**:
+   ```plaintext
+   NetCDF-C++ test passed. File 'test_cxx.nc' created successfully.
    ```
 </details>
 
