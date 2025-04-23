@@ -298,7 +298,7 @@ done
 
 MPI_DEPENDENTS=(
   atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2
-  eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx/4.3.1
+  eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx4/4.3.1
   gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3
 )
 
