@@ -125,7 +125,7 @@ for m in "${MPI_PKGS[@]}";      do load_module "$m"; done
 
 # -------- step 4: export dirs + patch LD_LIBRARY_PATH ------------------------
 
-log "[INFO] Atualizando LD_LIBRARY_PATH..."
+log "[INFO] Updating LD_LIBRARY_PATH..."
 NETCDF_DIR="$(spack location -i netcdf-c 2>/dev/null || true)"
 NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"
 HDF5_DIR="$(spack location -i hdf5 2>/dev/null || true)"

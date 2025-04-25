@@ -349,7 +349,7 @@ OUTPUT="$SPACK_ENV_DIR/start_spack_bundle.sh"
 	printf '%s\n' ''
 	printf '%s\n' '# -------- step 4: export dirs + patch LD_LIBRARY_PATH ------------------------'
 	printf '%s\n' ''
-	printf '%s\n' 'log "[INFO] Atualizando LD_LIBRARY_PATH..."'
+	printf '%s\n' 'log "[INFO] Updating LD_LIBRARY_PATH..."'
 	printf '%s\n' 'NETCDF_DIR="$(spack location -i netcdf-c 2>/dev/null || true)"'
 	printf '%s\n' 'NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"'
 	printf '%s\n' 'HDF5_DIR="$(spack location -i hdf5 2>/dev/null || true)"'
