@@ -695,10 +695,6 @@ Este comando irá:
 
 > ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
 
-# 🧭 Receita para Configurar o Spack-Stack na Máquina Egeon
-
-Esta receita descreve todas as etapas necessárias para instalar e configurar o **Spack-Stack 1.7.0** na máquina **Egeon**, levando em conta o ambiente de módulos e possíveis erros comuns.
-
 ---
 
 <a name="compartilhado"></a>
