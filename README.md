@@ -393,7 +393,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 2. **Carregue o módulo stack-openmpi**:
 
   ```bash
-  module load stack-openmpiu/4.1.1
+  module load stack-openmpi/4.1.1
   ```
 3. **Carregue o modulo netcdf-c/4.9.2**
    ```bash
