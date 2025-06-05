@@ -352,6 +352,8 @@ if [ -d "$HDF5_DIR" ]; then
 fi
 ```
 
+**Nota:** Caso o comando `export NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)` falhe, execute o comando `spack install --add netcdf-cxx` e em seguida `spack stack setup-meta-modules 2>&1 | tee log.metamodules` e tente novamente.
+
 Esses comandos garantem que os binários consigam encontrar as bibliotecas dinâmicas `libnetcdf.so` e `libhdf5.so`, evitando erros como:
 
 ```text
@@ -393,7 +395,7 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 2. **Carregue o módulo stack-openmpi**:
 
   ```bash
-  module load stack-openmpiu/4.1.1
+  module load stack-openmpi/4.1.1
   ```
 3. **Carregue o modulo netcdf-c/4.9.2**
    ```bash
@@ -457,19 +459,20 @@ error while loading shared libraries: libhdf5.so.310: cannot open shared object 
 3. **Exporte os caminhos das bibliotecas e includes**:
 
    ```bash
-   export NETCDF_LIB=$(spack location -i netcdf-c)/lib
-   export NETCDF_INC=$(spack location -i netcdf-c)/include
-   export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
+   export NETCDF_CXX4_DIR=$(spack location -i netcdf-cxx4)
+   export NETCDF_C_DIR=$(spack location -i netcdf-c)
    
-   export NETCDF_CXX_INC=$(spack location -i netcdf-cxx)/include
-   export NETCDF_CXX_LIB=$(spack location -i netcdf-cxx)/lib
-   export LD_LIBRARY_PATH="$NETCDF_CXX_LIB:$LD_LIBRARY_PATH"
+   export NETCDF_CXX4_INC=$NETCDF_CXX4_DIR/include
+   export NETCDF_CXX4_LIB=$NETCDF_CXX4_DIR/lib
+   
+   export NETCDF_C_INC=$NETCDF_C_DIR/include
+   export NETCDF_C_LIB=$NETCDF_C_DIR/lib
    ```
 
 4. **Compile o código**:
 
    ```bash
-   g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX_INC -L$NETCDF_CXX_LIB -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf_c++4 -lnetcdf
+   g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX4_INC -I$NETCDF_C_INC -L$NETCDF_CXX4_LIB -L$NETCDF_C_LIB -lnetcdf_c++4 -lnetcdf
    ```
 
 5. **Execute o programa**:
