@@ -352,6 +352,8 @@ if [ -d "$HDF5_DIR" ]; then
 fi
 ```
 
+**Nota:** Caso o comando `export NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)` falhe, execute o comando `spack install --add netcdf-cxx` e em seguida `spack stack setup-meta-modules 2>&1 | tee log.metamodules` e tente novamente.
+
 Esses comandos garantem que os binários consigam encontrar as bibliotecas dinâmicas `libnetcdf.so` e `libhdf5.so`, evitando erros como:
 
 ```text
