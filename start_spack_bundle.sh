@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Maintainer : João Gerd Zell de Mattos <joao.gerd@gmail.com>
 # Created    : 2025‑04‑?? (original version)
-# Last update: 2025‑04‑25
+# Last update: 2025‑06‑05  (added disable_conda helper)
 #
 # PURPOSE
 # =======
@@ -36,6 +36,49 @@
 #
 # EXIT CODES
 #   0 success | 1 user error | 2 runtime failure (trap protected)
+###############################################################################
+
+###############################################################################
+# !FUNCTION: disable_conda
+# !DESCRIPTION:
+#   Checks whether a Conda environment is active and completely deactivates it.
+###############################################################################
+disable_conda() {
+    if [[ -n "$CONDA_PREFIX" ]]; then
+        echo "[WARNING]  Conda environment detected: $CONDA_PREFIX"
+        echo "[ACTION] Deactivating all Conda environments…"
+        
+        # Deactivate in a loop until no CONDA_PREFIX remains
+        while [[ -n "$CONDA_PREFIX" ]]; do
+            if command -v conda &>/dev/null; then
+                conda deactivate &>/dev/null || break
+            elif [[ -n "$(type -t deactivate)" ]]; then
+                # Compatibility with very old Conda setups
+                deactivate &>/dev/null || break
+            else
+                break
+            fi
+        done
+        
+        # Unset Conda-related variables
+        unset CONDA_PREFIX \
+              CONDA_DEFAULT_ENV \
+              CONDA_PROMPT_MODIFIER \
+              CONDA_SHLVL \
+              _CONDA_ROOT
+        
+        echo "[ OK ] All Conda environments have been disabled."
+    else
+        echo "[ OK ] No active Conda environment detected."
+    fi
+}
+
+###############################################################################
+# !FUNCTION: activate_spack
+# !DESCRIPTION:
+#   Sources Spack, activates the desired environment, loads curated module
+#   sets, and exports key variables so that the MPAS‑JEDI tool‑chain becomes
+#   available in the current shell session.
 ###############################################################################
 activate_spack () {
   ###########################################################################
@@ -176,6 +219,9 @@ activate_spack () {
   trap - ERR        # remove our trap
   eval "$_old_set"  # restore flags (errexit, nounset, etc.)
 }
+
+# Disable Conda (if necessary) before activating Spack
+disable_conda
 
 # Execute the function, forwarding any CLI arguments the user provides.
 activate_spack "$@"
