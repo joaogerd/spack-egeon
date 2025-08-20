@@ -9,7 +9,7 @@ start=$(date +%s)
 
 # CONFIGURAÇÕES
 export SPACK_VERSION="${1:-1.7.0}"
-export ENV_NAME="mpas-bundle"
+export ENV_NAME="${ENV_NAME:-mpas-bundle}"
 export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION"
 export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-egeon"
 export MODULE_CORE_PATH="$SPACK_DIR/envs/$ENV_NAME/install/modulefiles/Core"
@@ -63,12 +63,12 @@ source setup.sh
 # CONFIGURAÇÃO DO SITE
 echo "[INFO] Copiando arquivos de configuração do site e template..."
 cp -r "$EGEON_CONFIG_REPO/configs/sites/egeon" configs/sites/
-cp -r "$EGEON_CONFIG_REPO/configs/templates/mpas-bundle" configs/templates/
+cp -r "$EGEON_CONFIG_REPO/configs/templates/$ENV_NAME" configs/templates/
 
 # CRIAÇÃO DO AMBIENTE
 if [ ! -d "$SPACK_DIR/envs/$ENV_NAME" ]; then
     echo "[INFO] Criando ambiente '$ENV_NAME'..."
-    spack stack create env --name=$ENV_NAME --template=mpas-bundle --site=egeon
+    spack stack create env --name=$ENV_NAME --template=$ENV_NAME --site=egeon
 else
     echo "[INFO] Ambiente '$ENV_NAME' já existe. Pulando criação."
 fi
