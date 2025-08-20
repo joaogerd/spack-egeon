@@ -4,34 +4,57 @@ Todas as mudanças notáveis neste repositório serão documentadas aqui.
 
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
+---
+
 ## [Unreleased]
 
-### Adicionado
-- Suporte a múltiplos **templates de ambientes Spack**:
+> **Planejado para v2.0.0**  
+> Suporte completo a **múltiplos ambientes Spack**, reorganização da estrutura e novas automações.
+
+### **Adicionado**
+- **Templates de ambientes** (`configs/templates/`):
   - `mpas-bundle` → dependências para **MPAS-JEDI**.
   - `obsproc-bundle` → dependências para **NCEPLIBS/Obsproc**.
-- Novo diretório `scripts/` com automações:
-  - `install_spack.sh` → instala/ativa o Spack.
-  - `setup_env.sh` → cria, ativa, concretiza e instala um ambiente.
-  - `sanity_check.sh` → checa compiladores, bibliotecas e ferramentas.
-- Nova organização de `configs/`:
-  - `sites/egeon/` → arquivos de configuração do cluster.
-  - `templates/` → pacotes agrupados por finalidade.
-- Novo `README.md` principal e `configs/README.md` detalhando a estrutura.
-- Integração opcional com CI via GitHub Actions.
+- **Scripts unificados** (`scripts/`):
+  - `install_spack.sh` → instala ou ativa o Spack.
+  - `setup_env.sh` → cria, ativa, concretiza e instala ambientes.
+  - `sanity_check.sh` → valida ferramentas e bibliotecas essenciais.
+- **Nova organização do diretório `configs/`**:
+  - `sites/egeon/` → arquivos específicos do cluster.
+  - `templates/` → pacotes agrupados por projeto.
+- **Melhor documentação**:
+  - Novo `README.md` principal com fluxo de uso.
+  - `configs/README.md` explicando estrutura e templates.
+- **Integração com CI** *(opcional)*:
+  - Lint para YAML.
+  - Validação básica de scripts.
+  - Teste “dry-run” de concretização para cada template.
 
 ---
 
 ## [v1.0.0] - 2025-08-20
-### Fixo
-- Estado atual consolidado do repositório.
-- Ambiente único baseado no **spack-stack 1.7.0** para **Egeon**.
-- Script `install_and_test_spack_stack.sh` funcional para instalação e geração de módulos.
-- Configurações específicas para o cluster Egeon em `configs/sites/egeon/`.
+### **Resumo**
+Versão estável anterior à reorganização.  
+
+- Ambiente único baseado no **spack-stack 1.7.0**.
+- Scripts `install_and_test_spack_stack.sh` e `start_spack_bundle.sh` para criar e ativar ambiente.
+- Configurações do cluster Egeon em `configs/sites/egeon/`.
+- Documentação básica no `README.md`.
 
 ---
 
-## Como versionamos
+## **Roadmap**
 
-- **v1.x.x** → ambiente único (MPAS).
-- **v2.x.x** → múltiplos ambientes, templates e scripts refatorados.
+### **v2.0.0** *(próxima versão)*
+- [ ] **Suporte completo a múltiplos ambientes** (MPAS-JEDI e NCEPLIBS/Obsproc).
+- [ ] **Scripts robustos** com logs, checagens e flags configuráveis.
+- [ ] **Documentação detalhada** para usuários novos.
+- [ ] **CI mínima** com lint de YAML, ShellCheck e teste de concretização.
+- [ ] Exploração do **Spack buildcache** para economizar tempo em instalações.
+
+### **v2.1.0** *(planejado)*
+- [ ] Automação para compilar **MPAS-JEDI** usando o ambiente do template.
+- [ ] Automação para compilar **Obsproc** e dependências integradas.
+- [ ] Guia de troubleshooting para problemas comuns (MPI, HDF5, NetCDF).
+
+---
