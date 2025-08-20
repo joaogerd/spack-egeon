@@ -1,0 +1,43 @@
+# spack-stack style template (compatível com 1.7.0)
+spack:
+  concretizer:
+    unify: when_possible
+  view: false
+  include:
+  - site
+  - common
+
+  definitions:
+  - compilers: ['%gcc@9.4.0']
+  - packages:
+    # Bases I/O/codificação
+    - zlib
+    - libpng
+    - jpeg
+    - jasper
+    - hdf5+fortran+hl
+    - netcdf-c
+    - netcdf-fortran
+    - eccodes
+    # Coleção NCEP
+    - nceplibs-bacio
+    - nceplibs-w3emc
+    - nceplibs-w3nco
+    - nceplibs-sp
+    - nceplibs-ip
+    - nceplibs-g2c
+    - nceplibs-sigio
+    - nceplibs-sfcio
+    - nceplibs-gfsio
+    - nceplibs-nemsio
+    - bufr
+    # Obs/rad utilitários
+    - crtm
+    - wgrib2
+    - nccmp
+
+  specs:
+  - matrix:
+    - [$packages]
+    - [$compilers]
+
