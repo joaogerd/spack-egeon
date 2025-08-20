@@ -20,16 +20,16 @@ spack:
     - netcdf-fortran
     - eccodes
     # Coleção NCEP
-    - nceplibs-bacio
-    - nceplibs-w3emc
-    - nceplibs-w3nco
-    - nceplibs-sp
-    - nceplibs-ip
-    - nceplibs-g2c
-    - nceplibs-sigio
-    - nceplibs-sfcio
-    - nceplibs-gfsio
-    - nceplibs-nemsio
+    - bacio
+    - w3emc
+    - w3nco
+    - sp
+    - ip
+    - g2c
+    - sigio
+    - sfcio
+    - gfsio
+    - nemsio
     - bufr
     # Obs/rad utilitários
     - crtm
