@@ -1,591 +1,432 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#BOP
+# !ROUTINE: install_and_test_spack_stack.sh
+#
+# !INTERFACE:
+#   install_and_test_spack_stack.sh [COMMON OPTIONS] -- [SCRIPT OPTIONS]
+#
+# !FUNCTION:
+#   One entrypoint to manage Spack-Stack on an HPC site in three phases:
+#   (1) Install/refresh the shared Spack-Stack (NO env creation),
+#   (2) Create and concretize a specific environment/bundle,
+#   (3) Run tests (baseline and/or per-environment).
+#
+# !DESCRIPTION:
+#   This script implements a reproducible flow to deploy Spack-Stack and
+#   JEDI-related environments on HPC clusters. It is designed to be re-runnable,
+#   safe without root privileges, and to log with the house helpers.
+#
+#   It integrates tightly with "__helpers__.sh":
+#     - Logging uses: _log_info/_log_warn/_log_err/_log_debug/_die
+#     - Execution uses: _run (honors dry_run)
+#     - Arg parsing: __parse_args__ for common flags (-v/--verbose, --dry-run, etc.)
+#
+# !COMMON OPTIONS (handled by __helpers__.sh):
+#   -v|--verbose            Verbose logging
+#   -q|--quiet              Disable INFO logs
+#   -d|--debug              Enable debug
+#   --dry-run               Log commands without executing
+#   -y|--yes                Auto-confirm
+#   -f|--fix                Allow fixes (createdirs/symlinks), if used by callers
+#
+# !SCRIPT OPTIONS (after `--` or mixed in; parsed here from leftover_args):
+#   --site NAME             HPC site shortname (e.g., egeon) [default: auto]
+#   --spack-version VER     Spack-Stack version/tag (e.g., 1.7.0) [${SPACK_VERSION:-1.7.0}]
+#   --spack-root DIR        Root prefix for Spack-Stack [${ROOT_PREFIX:-$HOME/.spack/mpas-bundle}]
+#   --env-name NAME         Environment/bundle name (e.g., mpas-bundle) [${ENV_NAME:-mpas-bundle}]
+#   --env-yaml PATH         spack.yaml template (site-aware) [auto]
+#   --site-config DIR       Site configs (compilers.yaml, packages.yaml, etc.) [auto]
+#   --jobs N                Parallel build jobs [${JOBS:-4}]
+#   --timeout N             Per-command timeout (s) [${TIMEOUT:-900}]
+#   --only-stack            Only Phase 1 (install Spack-Stack)
+#   --only-env              Only Phase 2 (create/install environment)
+#   --only-tests            Only Phase 3 (run tests)
+#   --with-baseline-tests   Enable baseline tests (NetCDF, CXX4, HDF5, OpenMPI)
+#   --with-env-tests        Enable env-specific tests (configs/templates/<env>/tests)
+#   -h|--help               Show help
+#
+# !ENVIRONMENT:
+#   verbose, debug, dry_run  (from __helpers__.sh)
+#   SPACK_VERSION, ROOT_PREFIX, ENV_NAME, JOBS, TIMEOUT
+#   /etc/profile.d/lmod.sh will be sourced if present to enable modules.
+#
+# !EXIT STATUS:
+#   0 on success; non-zero on errors (with contextual message).
+#
+# !EXAMPLES:
+#   # Install a shared stack for the group (no env):
+#   ./install_and_test_spack_stack.sh -- \
+#       --only-stack --spack-version 1.7.0 --spack-root /mnt/beegfs/das.group --site egeon
+#
+#   # Create the mpas-bundle on that stack:
+#   ./install_and_test_spack_stack.sh -- \
+#       --only-env --spack-root /mnt/beegfs/das.group --env-name mpas-bundle
+#
+#   # Run tests (baseline + env):
+#   ./install_and_test_spack_stack.sh -- \
+#       --only-tests --with-baseline-tests --with-env-tests
+#
+# !SEE ALSO:
+#   Spack-Stack docs, JEDI build guides, site-specific README.
+#
+# !AUTHOR:
+#   João Gerd Zell de Mattos <joao.gerd@gmail.com>
+#
+# !LICENSE:
+#   LGPL-3.0 (as per project policy) or the project-specific license file.
+#EOP
 
-# ===============================
-# Instalação e Testes do Spack-Stack na Egeon
-# ===============================
-set -Eeo pipefail
+set -Eeuo pipefail
+umask 022
+IFS=$'\n\t'
 
-start=$(date +%s)
+#-------------------------------#
+# Source project helpers (mandatory)
+#-------------------------------#
+# Expect __helpers__.sh in the same dir or neighboring lib path.
+__HERE__="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if   [[ -r "${__HERE__}/__helpers__.sh" ]]; then source "${__HERE__}/__helpers__.sh"
+elif [[ -r "./__helpers__.sh"          ]]; then source "./__helpers__.sh"
+elif [[ -r "${__HERE__}/lib/__helpers__.sh" ]]; then source "${__HERE__}/lib/__helpers__.sh"
+else
+  echo "[ERROR] __helpers__.sh not found; this script requires it." >&2
+  exit 2
+fi
 
-###############################################################################
-# CLI options (same style as start_spack_bundle.sh)
-# -----------------------------------------------------------------------------
-# precedence: CLI option  > environment variable   > default
-# -----------------------------------------------------------------------------
-# Defaults (can be overridden by env vars or CLI):
-SPACK_VERSION_DEFAULT="${SPACK_VERSION:-1.7.0}"
-ENV_NAME_DEFAULT="${ENV_NAME:-mpas-bundle}"
-ROOT_PREFIX_DEFAULT="${ROOT_PREFIX:-/mnt/beegfs/das.group}"      # base dir for stacks
-CONFIG_REPO_DEFAULT="${EGEON_CONFIG_REPO:-/mnt/beegfs/$USER/spack-egeon}"
-ENV_ROOT_DEFAULT="${SPACK_ENV_ROOT:-$HOME/.spack}"                # where per-env files live
+# Short aliases to match house style
+info()  { _log_info  "$@"; }
+warn()  { _log_warn  "$@"; }
+error() { _log_err   "$@"; }
+debug() { _log_debug "$@"; }
+die()   { _die       "$@"; }
 
+# _run executes the command honoring dry_run; we add timeout wrapper when present
+_run_with_timeout() {
+  #BOP
+  # !ROUTINE: _run_with_timeout
+  # !DESCRIPTION: Execute a command with timeout when available, honoring dry_run via _run.
+  #EOP
+  local timeout_s="${TIMEOUT:-900}"
+  if command -v timeout >/dev/null 2>&1; then
+    if [[ "${dry_run:-false}" == "true" ]]; then
+      _log_info "[DRY-RUN] timeout %s %s" "$timeout_s" "$*"
+      return 0
+    fi
+    timeout "$timeout_s" "$@"
+  else
+    _run "$@"
+  fi
+}
+
+#-------------------------------#
+# Global context & traps
+#-------------------------------#
+_start_ts="$(date +%s)"
+_script="$(basename "$0")"
+_host="$(hostname -s 2>/dev/null || hostname || echo unknown)"
+_tsdir="site_probe_${_host}_$(date +%Y%m%d-%H%M%S)"
+
+on_error() {
+  local ec=$? line="${BASH_LINENO[0]:-?}" cmd="${BASH_COMMAND:-?}"
+  _log_err "FAIL line %s, exit %s: %s" "$line" "$ec" "$cmd"
+  exit "$ec"
+}
+on_exit() {
+  local dt=$(( $(date +%s) - _start_ts ))
+  _log_debug "DONE %s completed in %ss" "$_script" "$dt"
+}
+trap on_error ERR
+trap on_exit EXIT
+
+#-------------------------------#
+# Defaults (script-level)
+#-------------------------------#
+SPACK_VERSION="${SPACK_VERSION:-1.7.0}"
+ENV_NAME="${ENV_NAME:-mpas-bundle}"
+ROOT_PREFIX="${ROOT_PREFIX:-$HOME/.spack/mpas-bundle}"
+SITE="${SITE:-}"
+SITE_CONFIG="${SITE_CONFIG:-}"
+ENV_YAML="${ENV_YAML:-}"
+JOBS="${JOBS:-4}"
+TIMEOUT="${TIMEOUT:-900}"
+
+DO_STACK=1
+DO_ENV=1
+DO_TESTS=1
+WITH_BASELINE_TESTS=0
+WITH_ENV_TESTS=0
+
+#-------------------------------#
+# Usage (script options)
+#-------------------------------#
 usage() {
-  cat <<'EOU'
-Usage:
-  install_and_test_spack_stack.sh [--version <ver>] [--env <name>]
-                                  [--spack-root <root_prefix>]
-                                  [--config-repo <path>]
-                                  [--env-root <path>]
-  (legacy) install_and_test_spack_stack.sh <ver>
+  sed -n '1,200p' "$0" | sed -n '/#BOP/,/#EOP/p' | sed 's/^# \?//'
+  cat <<USAGE
 
-Options:
-  --version       Spack-Stack version (default: 1.7.0)
-  --env           Environment name    (default: mpas-bundle)
-  --spack-root    Base directory for Spack-Stack trees (default: /mnt/beegfs/das.group)
-  --config-repo   Path to this config repo (default: /mnt/beegfs/$USER/spack-egeon)
-  --env-root      Directory holding per-env files (default: $HOME/.spack)
-  --help          Show this help
-
-Notes:
-- CLI options have priority over environment variables, which have priority over defaults.
-- The legacy positional "<ver>" is still accepted for backward compatibility.
-EOU
+Script options (parsed after __helpers__ common flags):
+  --site NAME             e.g., egeon
+  --spack-version VER     e.g., 1.7.0
+  --spack-root DIR        root installation prefix
+  --env-name NAME         e.g., mpas-bundle
+  --env-yaml PATH         spack.yaml template
+  --site-config DIR       site configs (compilers.yaml, packages.yaml,...)
+  --jobs N                parallel spack builds (default ${JOBS})
+  --timeout N             per-command timeout seconds (default ${TIMEOUT})
+  --only-stack | --only-env | --only-tests
+  --with-baseline-tests   enable baseline test suite
+  --with-env-tests        enable env-specific tests
+  -h|--help               this help
+USAGE
 }
 
-# tiny helpers (only define if not present)
-type die >/dev/null 2>&1 || die() { echo "[ERROR] $*" >&2; exit 1; }
-type log >/dev/null 2>&1 || log() { echo "$*"; }
+#-------------------------------#
+# Parse args: common via __parse_args__, then script-specific from leftover_args
+#-------------------------------#
+_parse_script_args() {
+  # First pass (common flags); writes leftover_args[]
+  PARSER_WRITE_LEFTOVERS=1 __parse_args__ "$@"
 
-# Seed with defaults
-SPACK_VERSION="$SPACK_VERSION_DEFAULT"
-ENV_NAME="$ENV_NAME_DEFAULT"
-ROOT_PREFIX="$ROOT_PREFIX_DEFAULT"
-EGEON_CONFIG_REPO="$CONFIG_REPO_DEFAULT"
-SPACK_ENV_ROOT="$ENV_ROOT_DEFAULT"
-CLEAN_ENV=false
+  # Second pass: parse this script's flags from leftover_args
+  local opt
+  local -a rest=()
+  while [[ ${#leftover_args[@]} -gt 0 ]]; do
+    opt="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}")
+    case "$opt" in
+      --site) SITE="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --spack-version) SPACK_VERSION="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --spack-root) ROOT_PREFIX="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --env-name) ENV_NAME="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --env-yaml) ENV_YAML="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --site-config) SITE_CONFIG="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --jobs) JOBS="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --timeout) TIMEOUT="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --only-stack) DO_STACK=1; DO_ENV=0; DO_TESTS=0;;
+      --only-env)   DO_STACK=0; DO_ENV=1; DO_TESTS=0;;
+      --only-tests) DO_STACK=0; DO_ENV=0; DO_TESTS=1;;
+      --with-baseline-tests) WITH_BASELINE_TESTS=1;;
+      --with-env-tests)      WITH_ENV_TESTS=1;;
+      -h|--help) usage; _exit_ok;;
+      --) rest+=("${leftover_args[@]}"); break;;
+      *)  rest+=("$opt");;
+    esac
+  done
 
-# Legacy positional "1.7.0" support (if first arg looks like a version)
-if [[ $# -ge 1 && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
-  SPACK_VERSION="$1"; shift
-fi
+  # Push any remaining tokens back to leftover_args for downstream tools (rare)
+  leftover_args=("${rest[@]}")
+  export SPACK_VERSION ROOT_PREFIX ENV_NAME JOBS TIMEOUT
+}
 
-# Parse long options
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --version)
-      [[ $# -ge 2 ]] || die "Missing value for --version"
-      SPACK_VERSION=$2; shift 2 ;;
-    --env)
-      [[ $# -ge 2 ]] || die "Missing value for --env"
-      ENV_NAME=$2; shift 2 ;;
-    --spack-root)
-      [[ $# -ge 2 ]] || die "Missing value for --spack-root"
-      ROOT_PREFIX=$2; shift 2 ;;
-    --config-repo)
-      [[ $# -ge 2 ]] || die "Missing value for --config-repo"
-      EGEON_CONFIG_REPO=$2; shift 2 ;;
-    --env-root)
-      [[ $# -ge 2 ]] || die "Missing value for --env-root"
-      SPACK_ENV_ROOT=$2; shift 2 ;;
-    --clean-env)
-      CLEAN_ENV=true; shift ;;
-    --help|-h)
-      usage; exit 0 ;;
-    *)
-      die "Unknown option: $1 (use --help)" ;;
+#-------------------------------#
+# Helpers / phases
+#-------------------------------#
+ensure_dirs() { mkdir -p "${ROOT_PREFIX}" "./logs/${_tsdir}"; }
+
+detect_site() {
+  #BOP
+  # !ROUTINE: detect_site
+  # !DESCRIPTION: Best-effort site detection from hostname if --site not provided.
+  #EOP
+  [[ -n "$SITE" ]] && { _log_info "Site provided: %s" "$SITE"; return; }
+  case "$_host" in
+    egeon*|egeon) SITE="egeon";;
+    xc50*|cray*)  SITE="xc50";;
+    *)            SITE="generic";;
   esac
-done
-
-
-# CONFIGURATION (derived)
-# -----------------------------------------------------------------------------
-# Spack-Stack tree for this version under the chosen root prefix
-export SPACK_VERSION
-export ENV_NAME
-export ROOT_PREFIX
-export EGEON_CONFIG_REPO
-export SPACK_ENV_ROOT
-
-# Root of the spack-stack clone for this version
-export SPACK_DIR="${SPACK_DIR:-${ROOT_PREFIX}/spack-stack_${SPACK_VERSION}}"
-
-# Path to the Spack checkout used by spack-stack
-export SPACK_ROOT="${SPACK_ROOT:-${SPACK_DIR}/spack}"
-
-# Module Core path produced by spack-stack for this environment
-export MODULE_CORE_PATH="${MODULE_CORE_PATH:-${SPACK_DIR}/envs/${ENV_NAME}/install/modulefiles/Core}"
-
-# Where to write per-environment activation files (start script, env.meta, env.modules.sh)
-# You can set SPACK_ENV_DIR explicitly, or use SPACK_ENV_ROOT/<ENV_NAME> (default).
-export SPACK_ENV_DIR="${SPACK_ENV_DIR:-${SPACK_ENV_ROOT}/${ENV_NAME}}"
-
-# (optional) echo the resolved configuration
-log "[INFO] Version     : ${SPACK_VERSION}"
-log "[INFO] Environment : ${ENV_NAME}"
-log "[INFO] Root prefix : ${ROOT_PREFIX}"
-log "[INFO] Stack dir   : ${SPACK_DIR}"
-log "[INFO] Spack root  : ${SPACK_ROOT}"
-log "[INFO] Core modules: ${MODULE_CORE_PATH}"
-log "[INFO] Env files   : ${SPACK_ENV_DIR}"
-
-# CONFIGURAÇÕES DE CACHE
-export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
-export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
-mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
-
-# LIMPEZA DE AMBIENTE
-echo "[INFO] Removendo cache local do Spack..."
-rm -rf ~/.cache/spack
-
-if $CLEAN_ENV; then
-  [[ -n ${SPACK_ENV_DIR:-} ]] || die "SPACK_ENV_DIR not defined!"
-  rm -rf -- "${SPACK_ENV_DIR}"
-fi
-
-echo "[INFO] Limpando variáveis de ambiente de versões anteriores do Spack..."
-unset SPACK_ENV
-unset SPACK_ROOT
-unset SPACK_STACK_DIR
-
-# PREPARAÇÃO
-echo "[INFO] Usando Spack-Stack versão: $SPACK_VERSION"
-echo "[INFO] Preparando diretório de trabalho em /mnt/beegfs/$USER"
-cd /mnt/beegfs/$USER
-
-if [ ! -d "$EGEON_CONFIG_REPO" ]; then
-    echo "[INFO] Clonando repositório de configuração spack-egeon..."
-    git clone https://github.com/joaogerd/spack-egeon.git
-fi
-
-if [ ! -d "$SPACK_DIR" ]; then
-    echo "[INFO] Clonando Spack-Stack versão $SPACK_VERSION..."
-    git clone https://github.com/JCSDA/spack-stack -b release/$SPACK_VERSION $SPACK_DIR --recurse-submodules
-else
-    echo "[INFO] Diretório $SPACK_DIR já existe. Atualizando submódulos..."
-    cd "$SPACK_DIR"
-    git submodule update --init --recursive
-fi
-
-# Garantindo submódulos atualizados
-cd "$SPACK_DIR"
-git submodule update --init --recursive
-
-# Inicializando ambiente
-echo "[INFO] Carregando módulo do compilador GCC..."
-module load gnu9
-
-echo "[INFO] Inicializando Spack-Stack..."
-source setup.sh
-
-# CONFIGURAÇÃO DO SITE
-echo "[INFO] Copiando arquivos de configuração do site e template..."
-cp -r "$EGEON_CONFIG_REPO/configs/sites/egeon" configs/sites/
-cp -r "$EGEON_CONFIG_REPO/configs/templates/$ENV_NAME" configs/templates/
-
-# CRIAÇÃO DO AMBIENTE
-if [ ! -d "$SPACK_DIR/envs/$ENV_NAME" ]; then
-    echo "[INFO] Criando ambiente '$ENV_NAME'..."
-    spack stack create env --name=$ENV_NAME --template=$ENV_NAME --site=egeon
-else
-    echo "[INFO] Ambiente '$ENV_NAME' já existe. Pulando criação."
-fi
-
-if [ -f "$SPACK_DIR/envs/$ENV_NAME/spack.yaml" ]; then
-    cd "$SPACK_DIR/envs/$ENV_NAME"
-    echo "[INFO] Ativando ambiente..."
-    spack env activate .
-else
-    echo "[ERROR] Arquivo spack.yaml não encontrado no ambiente '$ENV_NAME'."
-    exit 1
-fi
-
-echo "[INFO] Concretizando ambiente..."
-spack concretize 2>&1 | tee log.concretize
-
-echo "[INFO] Instalando pacotes do ambiente..."
-spack install 2>&1 | tee log.install
-
-# Verificação de sucesso da instalação
-test ${PIPESTATUS[0]} -eq 0 || { echo "[ERROR] spack install failed"; exit 1; }
-
-if [ ! -d "$SPACK_DIR/envs/$ENV_NAME/install/modulefiles" ]; then
-    echo "[ERROR] Instalação falhou. Diretório de módulos não foi criado."
-    exit 1
-fi
-
-echo "[INFO] Configurando meta-módulos..."
-spack stack setup-meta-modules 2>&1 | tee log.metamodules
-
-# CARREGAMENTO DE MÓDULOS
-echo "[INFO] Carregando módulos compilados..."
-module use "$MODULE_CORE_PATH"
-module load stack-gcc/9.4.0
-module load openmpi/4.1.1 || true
-
-# CONFIGURAÇÃO DE LD_LIBRARY_PATH PARA TESTES
-echo "[INFO] Configurando LD_LIBRARY_PATH para testes..."
-
-NETCDF_DIR=$(spack location -i netcdf-c)
-NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)
-HDF5_DIR=$(spack location -i hdf5)
-
-if [ -d "$NETCDF_DIR" ]; then
-    export LD_LIBRARY_PATH="$NETCDF_DIR/lib:$LD_LIBRARY_PATH"
-fi
-
-if [ -d "$NETCDF_CXX_DIR" ]; then
-    export LD_LIBRARY_PATH="$NETCDF_CXX_DIR/lib:$LD_LIBRARY_PATH"
-fi
-
-if [ -d "$HDF5_DIR" ]; then
-    export LD_LIBRARY_PATH="$HDF5_DIR/lib:$LD_LIBRARY_PATH"
-fi
-echo $LD_LIBRARY_PATH
-# TESTES
-echo "[INFO] Iniciando testes de bibliotecas..."
-mkdir -p ~/spack_tests && cd ~/spack_tests
-
-## Teste NetCDF
-echo "[TEST] Compilando e executando teste com NetCDF..."
-cat <<EOF > test_netcdf.c
-#include <netcdf.h>
-#include <stdio.h>
-int main() {
-    int ncid, retval;
-    const char *filename = "test.nc";
-    if ((retval = nc_create(filename, NC_CLOBBER, &ncid))) return retval;
-    if ((retval = nc_close(ncid))) return retval;
-    if ((retval = nc_open(filename, NC_NOWRITE, &ncid))) return retval;
-    printf("NetCDF test passed. File '%s' created and opened successfully.\\n", filename);
-    return 0;
+  _log_info "Auto-detected site: %s" "$SITE"
 }
-EOF
 
-gcc test_netcdf.c -o test_netcdf -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdf
-./test_netcdf
+setup_site_config() {
+  #BOP
+  # !ROUTINE: setup_site_config
+  # !DESCRIPTION: Resolve site-config and env-yaml locations if not provided.
+  #EOP
+  if [[ -z "$SITE_CONFIG" ]]; then
+    for d in "configs/sites/${SITE}" "configs/${SITE}" ; do
+      [[ -d "$d" ]] && { SITE_CONFIG="$d"; break; }
+    done
+  fi
+  if [[ -z "$ENV_YAML" ]]; then
+    for f in "configs/templates/${ENV_NAME}/spack.yaml" "configs/templates/${ENV_NAME}/spack-${SITE}.yaml"; do
+      [[ -f "$f" ]] && { ENV_YAML="$f"; break; }
+    done
+  fi
 
-## Teste NetCDF-cxx4
-cat <<EOF > test_netcdf_cxx.cpp
-#include <netcdf>
-#include <iostream>
-
-int main() {
-    try {
-        std::string filename = "test_cxx.nc";
-        netCDF::NcFile dataFile(filename, netCDF::NcFile::replace);
-        std::cout << "NetCDF-C++ test passed. File '" << filename << "' created successfully." << std::endl;
-    } catch (netCDF::exceptions::NcException& e) {
-        std::cerr << "NetCDF-C++ test failed: " << e.what() << std::endl;
-        return 1;
-    }
-    return 0;
+  [[ -n "$SITE_CONFIG" ]] && _log_info "Using site-config: %s" "$SITE_CONFIG" || _log_warn "No site-config directory found (will rely on defaults)."
+  [[ -n "$ENV_YAML"   ]] && _log_info "Using env template: %s" "$ENV_YAML"     || _log_warn "No env template (spack.yaml) provided; you may create one."
 }
-EOF
 
-g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX_DIR/include -L$NETCDF_CXX_DIR/lib -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdf_c++4
-./test_netcdf_cxx
+bootstrap_spack() {
+  #BOP
+  # !ROUTINE: bootstrap_spack
+  # !DESCRIPTION: Install or refresh the Spack-Stack tree under ROOT_PREFIX.
+  #EOP
+  local spack_dir="${ROOT_PREFIX}/spack-stack"
 
-## Teste HDF5
-echo "[TEST] Compilando e executando teste com HDF5..."
-cat <<EOF > test_hdf5.c
-#include "hdf5.h"
-#include <stdio.h>
-int main() {
-    hid_t file_id;
-    herr_t status;
-    file_id = H5Fcreate("test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    if (file_id < 0) {
-        printf("Error creating HDF5 file.\\n");
-        return 1;
-    }
-    status = H5Fclose(file_id);
-    if (status < 0) {
-        printf("Error closing HDF5 file.\\n");
-        return 1;
-    }
-    printf("HDF5 test passed. File 'test.h5' created successfully.\\n");
-    return 0;
+  if [[ -d "$spack_dir/.git" ]]; then
+    _log_info "Refreshing Spack-Stack @ %s (version: %s)" "$spack_dir" "${SPACK_VERSION}"
+    ( cd "$spack_dir" && _run_with_timeout git fetch --all && _run_with_timeout git checkout "${SPACK_VERSION}" && _run_with_timeout git pull --rebase || true )
+  else
+    _log_info "Cloning Spack-Stack %s → %s" "${SPACK_VERSION}" "$spack_dir"
+    mkdir -p "$spack_dir"
+    _run_with_timeout git clone --branch "${SPACK_VERSION}" --depth 1 https://github.com/JCSDA/spack-stack.git "$spack_dir"
+  fi
+
+  # Load spack env
+  if [[ -f "${spack_dir}/setup.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${spack_dir}/setup.sh"
+  elif [[ -f "${spack_dir}/spack/share/spack/setup-env.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${spack_dir}/spack/share/spack/setup-env.sh"
+  else
+    _die "Cannot find spack setup scripts under %s" "${spack_dir}"
+  fi
+
+  # Site configs
+  if [[ -n "$SITE_CONFIG" ]]; then
+    _log_info "Copying site configs (*.yaml) into Spack-Stack site dir"
+    mkdir -p "${spack_dir}/config/sites/${SITE}"
+    _run_with_timeout rsync -a "${SITE_CONFIG}/" "${spack_dir}/config/sites/${SITE}/"
+  fi
+
+  # Cache
+  export SPACK_USER_CACHE_PATH="${ROOT_PREFIX}/.spack_cache"
+  mkdir -p "${SPACK_USER_CACHE_PATH}"
+  _log_debug "SPACK_USER_CACHE_PATH=%s" "${SPACK_USER_CACHE_PATH}"
 }
-EOF
 
-gcc test_hdf5.c -o test_hdf5 -I$HDF5_DIR/include -L$HDF5_DIR/lib -lhdf5
-./test_hdf5
+create_env() {
+  #BOP
+  # !ROUTINE: create_env
+  # !DESCRIPTION: Create (if missing) and concretize the requested environment.
+  #EOP
+  local spack_dir="${ROOT_PREFIX}/spack-stack"
+  [[ -f "${spack_dir}/setup.sh" ]] || _die "spack not initialized (missing setup.sh)."
+  # shellcheck source=/dev/null
+  source "${spack_dir}/setup.sh"
 
-## Teste OpenMPI
-echo "[TEST] Compilando e executando teste com OpenMPI..."
-cat <<EOF > test_mpi.c
-#include <mpi.h>
-#include <stdio.h>
-int main(int argc, char *argv[]) {
-    MPI_Init(&argc, &argv);
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    printf("Hello from rank %d of %d.\\n", rank, size);
-    MPI_Finalize();
-    return 0;
+  local env_dir="${ROOT_PREFIX}/envs/${ENV_NAME}"
+  mkdir -p "${env_dir}"
+  if [[ -n "$ENV_YAML" && -f "$ENV_YAML" ]]; then
+    _log_info "Seeding %s with %s" "${ENV_NAME}" "${ENV_YAML}"
+    _run_with_timeout rsync -a "$ENV_YAML" "${env_dir}/spack.yaml"
+  else
+    _log_warn "No env template provided; creating an empty environment."
+  fi
+
+  _run_with_timeout spack env create -d "${env_dir}" || true
+  _run_with_timeout spack env activate -d "${env_dir}"
+  _run_with_timeout spack -e "${env_dir}" concretize -f
+  _run_with_timeout spack -e "${env_dir}" install -j "${JOBS}" --fail-fast
+  _log_ok "Environment %s installed at %s" "${ENV_NAME}" "${env_dir}"
 }
-EOF
 
-mpicc test_mpi.c -o test_mpi
-mpirun -np 4 ./test_mpi
+run_baseline_tests() {
+  #BOP
+  # !ROUTINE: run_baseline_tests
+  # !DESCRIPTION: Run site-wide baseline tests if available (NetCDF, NetCDF-CXX4, HDF5, OpenMPI).
+  #EOP
+  local any=0
+  for t in \
+    "configs/templates/tests/test_netcdf.sh" \
+    "configs/templates/tests/test_netcdf_cxx4.sh" \
+    "configs/templates/tests/test_hdf5.sh" \
+    "configs/templates/tests/test_openmpi.sh"
+  do
+    if [[ -x "$t" ]]; then
+      any=1; _log_action "Running baseline test: %s" "$(basename "$t")"
+      _run_with_timeout "$t" || _die "Baseline test failed: %s" "$(basename "$t")"
+    fi
+  done
+  [[ $any -eq 0 ]] && _log_warn "No baseline tests found; skipping."
+}
 
-chmod +x test_*
+run_env_tests() {
+  #BOP
+  # !ROUTINE: run_env_tests
+  # !DESCRIPTION: Run env-specific tests if present under configs/templates/<env>/tests/.
+  #EOP
+  local dir="configs/templates/${ENV_NAME}/tests"
+  if [[ -d "$dir" ]]; then
+    local tests=()
+    mapfile -t tests < <(find "$dir" -maxdepth 1 -type f -name "test_*.sh" -perm -u+x | sort)
+    if [[ ${#tests[@]} -eq 0 ]]; then
+      _log_warn "No env tests found in %s" "${dir}"
+      return 0
+    fi
+    _log_info "Running %d env tests in %s" "${#tests[@]}" "${dir}"
+    for t in "${tests[@]}"; do
+      _log_action "→ %s" "$(basename "$t")"
+      _run_with_timeout "$t" || _die "Env test failed: %s" "$(basename "$t")"
+    done
+  else
+    _log_warn "Env test directory '%s' not found; skipping env tests." "${dir}"
+  fi
+}
 
-# VERIFICAÇÃO FINAL
-echo "[INFO] Verificando arquivos gerados..."
-ncdump test.nc | head -n 5 || echo "[WARNING] Erro ao usar ncdump"
-h5dump test.h5 | head -n 5 || echo "[WARNING] Erro ao usar h5dump"
+install_stack() {
+  #BOP
+  # !ROUTINE: install_stack
+  # !DESCRIPTION: Phase 1 — install/refresh Spack-Stack under ROOT_PREFIX.
+  #EOP
+  detect_site
+  setup_site_config
+  bootstrap_spack
+  _log_ok "[STACK] Spack-Stack ready under %s" "${ROOT_PREFIX}"
+}
 
-# 1) metadata file for the starter (env.meta)
-mkdir -p "${SPACK_ENV_DIR}" || echo "[WARNING] Erro ao criar $SPACK_ENV_DIR"
-cat > "${SPACK_ENV_DIR}/env.meta" <<EOF
-# Generated by install_and_test_spack_stack.sh
-export SPACK_ROOT="${SPACK_ROOT}"
-export STACK_DIR="${SPACK_DIR}"
-export MODULE_ROOT="${MODULE_CORE_PATH%/Core}"
-export ENV_NAME="${ENV_NAME}"
-EOF
-log "[INFO] Wrote ${SPACK_ENV_DIR}/env.meta"
+install_env() {
+  #BOP
+  # !ROUTINE: install_env
+  # !DESCRIPTION: Phase 2 — create and install the requested environment.
+  #EOP
+  create_env
+}
 
-# 2) per-environment module list (copied from template if present)
-TEMPLATE_DIR="${EGEON_CONFIG_REPO}/configs/templates/${ENV_NAME}"
-if [[ -f "${TEMPLATE_DIR}/modules.sh" ]]; then
-  install -D -m 0644 "${TEMPLATE_DIR}/modules.sh" "${SPACK_ENV_DIR}/env.modules.sh"
-  log "[INFO] Installed module list: ${SPACK_ENV_DIR}/env.modules.sh"
-else
-  log "[WARN] No modules.sh in ${TEMPLATE_DIR}; starter will use built-in defaults."
-fi
+test_phase() {
+  #BOP
+  # !ROUTINE: test_phase
+  # !DESCRIPTION: Phase 3 — run baseline and/or env tests if requested.
+  #EOP
+  local spack_dir="${ROOT_PREFIX}/spack-stack"
+  [[ -f "${spack_dir}/setup.sh" ]] || _die "spack not initialized (missing setup.sh)."
+  # shellcheck source=/dev/null
+  source "${spack_dir}/setup.sh"
 
-# GERANDO SCRIPT DE ATIVAÇÃO
-OUTPUT="$SPACK_ENV_DIR/start_spack_bundle.sh"
-{
-   printf '%s\n' '#!/usr/bin/env bash'
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' '# start_spack_bundle.sh'
-   printf '%s\n' '# -----------------------------------------------------------------------------'
-   printf '%s\n' '# Activate the **shared Spack‑Stack environment** (mpas‑bundle) on Egeon.'
-   printf '%s\n' '# -----------------------------------------------------------------------------'
-   printf '%s\n' '# Maintainer : João Gerd Zell de Mattos <joao.gerd@gmail.com>'
-   printf '%s\n' '# Created    : 2025‑04‑?? (original version)'
-   printf '%s\n' '# Last update: 2025‑06‑05  (added disable_conda helper)'
-   printf '%s\n' '#'
-   printf '%s\n' '# PURPOSE'
-   printf '%s\n' '# ======='
-   printf '%s\n' '# Initialise a **read‑only, centrally installed** Spack‑Stack tree so that all'
-   printf '%s\n' '# compilers, libraries and tools needed by MPAS‑JEDI are visible to the shell.'
-   printf '%s\n' '# It performs four main steps:'
-   printf '%s\n' '#   1. source Spack itself (adds `spack` to PATH).'
-   printf '%s\n' '#   2. activate the requested *environment* (spack env activate …).'
-   printf '%s\n' '#   3. extend `module` search path and load curated module sets (essentials,'
-   printf '%s\n' '#      MPI‑dependent libs, etc.).'
-   printf '%s\n' '#   4. export key variables (NETCDF_DIR, HDF5_DIR, …) **and** patch'
-   printf '%s\n' '#      `LD_LIBRARY_PATH` for NetCDF/HDF5, because Lmod packages sometimes omit'
-   printf '%s\n' '#      shared libs from MODULEPATH.'
-   printf '%s\n' '#'
-   printf '%s\n' '# USAGE'
-   printf '%s\n' '# -----'
-   printf '%s\n' '#   source start_spack_bundle.sh [--version <ver>] [--env <name>]'
-   printf '%s\n' '#                                [--spack-root <path>]'
-   printf '%s\n' '#'
-   printf '%s\n' '#   All options are *optional* and can be combined:'
-   printf '%s\n' '#     --version      Spack‑Stack version   (default: 1.7.0)'
-   printf '%s\n' '#     --env          Environment name      (default: mpas-bundle)'
-   printf '%s\n' '#     --spack-root   Override root path    (default: /mnt/beegfs/das.group)'
-   printf '%s\n' '#'
-   printf '%s\n' '# The script is meant to be *sourced*, not executed, so that exported variables'
-   printf '%s\n' '# persist in the caller shell (e.g. `source start_spack_bundle.sh`).'
-   printf '%s\n' '#'
-   printf '%s\n' '# EXIT CODES'
-   printf '%s\n' '#   0 success | 1 user error | 2 runtime failure (trap protected)'
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' ''
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' '# !FUNCTION: disable_conda'
-   printf '%s\n' '# !DESCRIPTION:'
-   printf '%s\n' '#   Checks whether a Conda environment is active and completely deactivates it.'
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' 'disable_conda() {'
-   printf '%s\n' '    if [[ -n "$CONDA_PREFIX" ]]; then'
-   printf '%s\n' '        echo "[WARNING]  Conda environment detected: $CONDA_PREFIX"'
-   printf '%s\n' '        echo "[ACTION] Deactivating all Conda environments…"'
-   printf '%s\n' '        '
-   printf '%s\n' '        # Deactivate in a loop until no CONDA_PREFIX remains'
-   printf '%s\n' '        while [[ -n "$CONDA_PREFIX" ]]; do'
-   printf '%s\n' '            if command -v conda &>/dev/null; then'
-   printf '%s\n' '                conda deactivate &>/dev/null || break'
-   printf '%s\n' '            elif [[ -n "$(type -t deactivate)" ]]; then'
-   printf '%s\n' '                # Compatibility with very old Conda setups'
-   printf '%s\n' '                deactivate &>/dev/null || break'
-   printf '%s\n' '            else'
-   printf '%s\n' '                break'
-   printf '%s\n' '            fi'
-   printf '%s\n' '        done'
-   printf '%s\n' '        '
-   printf '%s\n' '        # Unset Conda-related variables'
-   printf '%s\n' '        unset CONDA_PREFIX \'
-   printf '%s\n' '              CONDA_DEFAULT_ENV \'
-   printf '%s\n' '              CONDA_PROMPT_MODIFIER \'
-   printf '%s\n' '              CONDA_SHLVL \'
-   printf '%s\n' '              _CONDA_ROOT'
-   printf '%s\n' '        '
-   printf '%s\n' '        echo "[ OK ] All Conda environments have been disabled."'
-   printf '%s\n' '    else'
-   printf '%s\n' '        echo "[ OK ] No active Conda environment detected."'
-   printf '%s\n' '    fi'
-   printf '%s\n' '}'
-   printf '%s\n' ''
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' '# !FUNCTION: activate_spack'
-   printf '%s\n' '# !DESCRIPTION:'
-   printf '%s\n' '#   Sources Spack, activates the desired environment, loads curated module'
-   printf '%s\n' '#   sets, and exports key variables so that the MPAS‑JEDI tool‑chain becomes'
-   printf '%s\n' '#   available in the current shell session.'
-   printf '%s\n' '###############################################################################'
-   printf '%s\n' 'activate_spack () {'
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  # Save the current shell flags so we can restore them later.              #'
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  local _old_set'
-   printf '%s\n' '  _old_set=$(set +o)       # captures output like: "set +o errexit +o nounset …"'
-   printf '%s\n' ''
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  # Enable “strict mode” **only** inside this function.                     #'
-   printf '%s\n' '  # -E  : propagate ERR traps into functions and command substitutions      #'
-   printf '%s\n' '  # -e  : abort as soon as any command returns a non-zero status            #'
-   printf '%s\n' '  # -u  : abort if an undefined variable is referenced                      #'
-   printf '%s\n' '  # -o pipefail : a pipeline fails if **any** command in it fails           #'
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  set -Eeuo pipefail'
-   printf '%s\n' ''
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  # If an error occurs, print a helpful message.                             #'
-   printf '%s\n' '  # If we’re still inside the function, `return 2`; otherwise fall back to   #'
-   printf '%s\n' '  # `exit 2` so the script run with “bash script.sh” still stops.            #'
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  trap {'
-   printf '%s\n' '      printf "[ERROR] %s – line %d\n" "${BASH_SOURCE[0]}" $LINENO >&2'
-   printf '%s\n' '      return 2 2>/dev/null || exit 2'
-   printf '%s\n' '  } ERR'
-   printf '%s\n' ''
-   printf '%s\n' '  # -------- helpers ------------------------------------------------------------'
-   printf '%s\n' '  log() { printf '\''[%s] %s\n'\'' "$(date +'\''%Y-%m-%d %H:%M:%S'\'')" "$*"; }'
-   printf '%s\n' '  die() { log "[ERROR] $*"; return 1 2>/dev/null || exit 1; }'
-   printf '%s\n' '  load_module() { module load "$1" 2>/dev/null || log "[WARN] module not found: $1"; }'
-   printf '%s\n' ''
-   printf '%s\n' '  # -------- argument parsing ---------------------------------------------------'
-   printf '%s\n' '  SPACK_VERSION=1.7.0'
-   printf '%s\n' '  ENV_NAME=mpas-bundle'
-   printf '%s\n' "  ROOT_PREFIX="$SPACK_ENV_DIR""
-   printf '%s\n' '  '
-   printf '%s\n' '  while [[ $# -gt 0 ]]; do'
-   printf '%s\n' '    case "$1" in'
-   printf '%s\n' '      --version)   SPACK_VERSION="$2" ; shift 2 ;;'
-   printf '%s\n' '      --env)       ENV_NAME="$2"     ; shift 2 ;;'
-   printf '%s\n' '      --spack-root) ROOT_PREFIX="$2" ; shift 2 ;;'
-   printf '%s\n' '      *) die "Unknown option: $1" ;;'
-   printf '%s\n' '    esac'
-   printf '%s\n' '  done'
-   printf '%s\n' '  '
-   printf '%s\n' '  # -------- paths --------------------------------------------------------------'
-   printf '%s\n' '  SPACK_ROOT="$ROOT_PREFIX/spack-stack_$SPACK_VERSION"'
-   printf '%s\n' '  SPACK_ENV_PATH="$SPACK_ROOT/envs/$ENV_NAME"'
-   printf '%s\n' '  MODULE_CORE_PATH="$SPACK_ENV_PATH/install/modulefiles/Core"'
-   printf '%s\n' '  '
-   printf '%s\n' '  [[ -d "$SPACK_ROOT" ]]      || die "Spack root not found: $SPACK_ROOT"'
-   printf '%s\n' '  [[ -d "$SPACK_ENV_PATH" ]]  || die "Spack env not found:  $SPACK_ENV_PATH"'
-   printf '%s\n' ''
-   printf '%s\n' '  # Avoid repeated activation'
-   printf '%s\n' '  ENV_FLAG="$(tr '\''[:lower:]-'\'' '\''[:upper:]_'\'' <<< "$ENV_NAME")_ENV_ACTIVE"'
-   printf '%s\n' '  if [[ ${!ENV_FLAG:-0} -eq 1 ]]; then'
-   printf '%s\n' '    log "[INFO] Environment '\''$ENV_NAME'\'' already active – skipping re‑activation."'
-   printf '%s\n' '    return 0 2>/dev/null || exit 0'
-   printf '%s\n' '  fi'
-   printf '%s\n' ''
-   printf '%s\n' '  START_TIME=$(date +%s)'
-   printf '%s\n' '  '
-   printf '%s\n' '  # -------- step 1: source Spack ----------------------------------------------'
-   printf '%s\n' '  log "[INFO] Activating Spack ($SPACK_VERSION) at $SPACK_ROOT …"'
-   printf '%s\n' '  export PATH="$SPACK_ROOT/bin:$PATH"'
-   printf '%s\n' '  '
-   printf '%s\n' '  # Prevent Spack from using or writing to user/system config scopes'
-   printf '%s\n' '  export SPACK_DISABLE_LOCAL_CONFIG=true'
-   printf '%s\n' ''
-   printf '%s\n' '  # enter Spack root to avoid relative‑path issues inside setup.sh'
-   printf '%s\n' '  OLDPWD_SPACK="$PWD"'
-   printf '%s\n' '  cd "$SPACK_ROOT"'
-   printf '%s\n' '  source "./setup.sh"'
-   printf '%s\n' '  cd "$OLDPWD_SPACK"'
-   printf '%s\n' '  '
-   printf '%s\n' '  # user caches on BeeGFS to offload /home'
-   printf '%s\n' '  export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"'
-   printf '%s\n' '  export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"'
-   printf '%s\n' '  mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"'
-   printf '%s\n' '  '
-   printf '%s\n' '  command -v spack >/dev/null || die "spack not in PATH after activation."'
-   printf '%s\n' '  '
-   printf '%s\n' '  # -------- step 2: activate env ----------------------------------------------'
-   printf '%s\n' '  log "[INFO] Activating Spack environment '\''$ENV_NAME'\'' …"'
-   printf '%s\n' '  spack env activate "$SPACK_ENV_PATH"'
-   printf '%s\n' '  '
-   printf '%s\n' '  # -------- step 3: load modules ----------------------------------------------'
-   printf '%s\n' '  module use "$MODULE_CORE_PATH"'
-   printf '%s\n' '  '
-   printf '%s\n' '  log "[INFO] Loading essential modules ..."'
-   printf '%s\n' '  ESSENTIALS=(stack-gcc/9.4.0 stack-openmpi/4.1.1 stack-python/3.10.13)'
-   printf '%s\n' '  for m in "${ESSENTIALS[@]}";   do load_module "$m"; done'
-   printf '%s\n' '  '
-   printf '%s\n' '  log "[INFO] Loading standard modules ..."'
-   printf '%s\n' '  EXTRA_PKGS=('
-   printf '%s\n' '    boost/1.84.0 jedi-cmake/1.4.0 python/3.10.13 c-blosc/1.21.5 libbsd/0.11.7'
-   printf '%s\n' '    qhull/2020.2 ca-certificates-mozilla/2023-05-30 libmd/1.0.4 snappy/1.1.10'
-   printf '%s\n' '    cmake/3.23.1 libxcrypt/4.4.35 sqlite/3.43.2 curl/8.4.0 nghttp2/1.57.0'
-   printf '%s\n' '    ecbuild/3.7.2 openblas/0.3.24 eigen/3.4.0 tar/1.34 gcc-runtime/9.4.0'
-   printf '%s\n' '    py-pip/23.1.2 udunits/2.2.28 gettext/0.21.1 py-pycodestyle/2.11.0'
-   printf '%s\n' '    util-linux-uuid/2.38.1 gmake/4.3 py-setuptools/63.4.3 zlib-ng/2.1.5'
-   printf '%s\n' '    gsl-lite/0.37.0 py-wheel/0.41.2 zstd/1.5.2'
-   printf '%s\n' '  )'
-   printf '%s\n' '  for m in "${EXTRA_PKGS[@]}";    do load_module "$m"; done'
-   printf '%s\n' '  '
-   printf '%s\n' '  log "[INFO] Loading MPI deps modules ..."'
-   printf '%s\n' '  MPI_PKGS=('
-   printf '%s\n' '    atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2'
-   printf '%s\n' '    eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx4/4.3.1'
-   printf '%s\n' '    gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3'
-   printf '%s\n' '  )'
-   printf '%s\n' '  for m in "${MPI_PKGS[@]}";      do load_module "$m"; done'
-   printf '%s\n' '  '
-   printf '%s\n' '  # -------- step 4: export dirs + patch LD_LIBRARY_PATH ------------------------'
-   printf '%s\n' '  '
-   printf '%s\n' '  log "[INFO] Updating LD_LIBRARY_PATH..."'
-   printf '%s\n' '  NETCDF_DIR="$(spack location -i netcdf-c 2>/dev/null || true)"'
-   printf '%s\n' '  NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"'
-   printf '%s\n' '  HDF5_DIR="$(spack location -i hdf5 2>/dev/null || true)"'
-   printf '%s\n' '  '
-   printf '%s\n' '  [[ -n "$NETCDF_DIR" ]]      && export NETCDF_DIR'
-   printf '%s\n' '  [[ -n "$NETCDF_CXX_DIR" ]]  && export NETCDF_CXX_DIR'
-   printf '%s\n' '  [[ -n "$HDF5_DIR" ]]        && export HDF5_DIR'
-   printf '%s\n' '  '
-   printf '%s\n' '  for libdir in "$NETCDF_DIR/lib" "$NETCDF_CXX_DIR/lib" "$HDF5_DIR/lib"; do'
-   printf '%s\n' '    [[ -d "$libdir" ]] && export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"'
-   printf '%s\n' '  done'
-   printf '%s\n' '  '
-   printf '%s\n' '  END_TIME=$(date +%s)'
-   printf '%s\n' '  '
-   printf '%s\n' '  log "[INFO] Environment '\''$ENV_NAME'\'' is ready (Δt=$((END_TIME-START_TIME)) s)"'
-   printf '%s\n' '  export "$ENV_FLAG"=1'
-   printf '%s\n' ''
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  # Restore the original shell flags and remove our ERR trap                #'
-   printf '%s\n' '  ###########################################################################'
-   printf '%s\n' '  trap - ERR        # remove our trap'
-   printf '%s\n' '  eval "$_old_set"  # restore flags (errexit, nounset, etc.)'
-   printf '%s\n' '}'
-   printf '%s\n' ''
-   printf '%s\n' '# Disable Conda (if necessary) before activating Spack'
-   printf '%s\n' 'disable_conda'
-   printf '%s\n' ''
-   printf '%s\n' '# Execute the function, forwarding any CLI arguments the user provides.'
-   printf '%s\n' 'activate_spack "$@"'
-} > "$OUTPUT"
+  if [[ $WITH_BASELINE_TESTS -eq 1 ]]; then
+    run_baseline_tests
+  else
+    _log_info "Baseline tests disabled."
+  fi
 
-ls -l $SPACK_ENV_DIR/start_spack_bundle.sh
-chmod u+x $SPACK_ENV_DIR/start_spack_bundle.sh
+  if [[ $WITH_ENV_TESTS -eq 1 ]]; then
+    local env_dir="${ROOT_PREFIX}/envs/${ENV_NAME}"
+    if [[ -d "$env_dir" ]]; then
+      _run_with_timeout spack env activate -d "${env_dir}"
+    else
+      _log_warn "Env dir %s not found; env tests might fail." "${env_dir}"
+    fi
+    run_env_tests
+  else
+    _log_info "Env tests disabled."
+  fi
+}
 
-echo "[INFO] Para ativar o ambiente, execute:"
-echo "       source $SPACK_ENV_DIR/start_spack_bundle.sh"
+main() {
+  _parse_script_args "$@"
+  ensure_dirs
+  _log_info "[BEGIN] %s on %s" "${_script}" "${_host}"
+  _log_info "Root: %s | Spack-Stack: %s | Env: %s" "${ROOT_PREFIX}" "${SPACK_VERSION}" "${ENV_NAME}"
 
-end=$(date +%s)
-echo "[INFO] Todos os testes foram concluídos com sucesso."
-echo "[INFO] Tempo total de execução: $((end - start)) segundos"
+  if [[ $DO_STACK -eq 1 ]]; then install_stack; fi
+  if [[ $DO_ENV   -eq 1 ]]; then install_env; fi
+  if [[ $DO_TESTS -eq 1 ]]; then test_phase; fi
+
+  _log_ok "[DONE] Completed."
+}
+
+# Initialize modules if available (optional for your site)
+[[ -r /etc/profile.d/lmod.sh ]] && source /etc/profile.d/lmod.sh || true
+
+main "$@"
 
