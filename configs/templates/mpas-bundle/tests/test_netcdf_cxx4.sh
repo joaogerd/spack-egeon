@@ -1,0 +1,1 @@
+../../common-tests/test_netcdf_cxx4.sh
