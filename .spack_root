@@ -1,0 +1,10 @@
+# anchor/.spack_root
+# ==============================================================
+# Anchor file for Spack-Stack environments
+# Defines the canonical root path where Spack-Stack is installed.
+# Scripts and CI tools use this as a reference for relative discovery.
+# ==============================================================
+
+SPACK_ROOT_DEFAULT="$HOME/.spack/mpas-bundle"
+echo "$SPACK_ROOT_DEFAULT"
+
