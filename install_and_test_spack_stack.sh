@@ -3,17 +3,120 @@
 # ===============================
 # Instalação e Testes do Spack-Stack na Egeon
 # ===============================
-set -e
+set -Eeo pipefail
 
 start=$(date +%s)
 
-# CONFIGURAÇÕES
-export SPACK_VERSION="${1:-1.7.0}"
-export ENV_NAME="${ENV_NAME:-mpas-bundle}"
-export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION"
-export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-egeon"
-export MODULE_CORE_PATH="$SPACK_DIR/envs/$ENV_NAME/install/modulefiles/Core"
-export SPACK_ENV_DIR="$HOME/.spack/$ENV_NAME"
+###############################################################################
+# CLI options (same style as start_spack_bundle.sh)
+# -----------------------------------------------------------------------------
+# precedence: CLI option  > environment variable   > default
+# -----------------------------------------------------------------------------
+# Defaults (can be overridden by env vars or CLI):
+SPACK_VERSION_DEFAULT="${SPACK_VERSION:-1.7.0}"
+ENV_NAME_DEFAULT="${ENV_NAME:-mpas-bundle}"
+ROOT_PREFIX_DEFAULT="${ROOT_PREFIX:-/mnt/beegfs/das.group}"      # base dir for stacks
+CONFIG_REPO_DEFAULT="${EGEON_CONFIG_REPO:-/mnt/beegfs/$USER/spack-egeon}"
+ENV_ROOT_DEFAULT="${SPACK_ENV_ROOT:-$HOME/.spack}"                # where per-env files live
+
+usage() {
+  cat <<'EOU'
+Usage:
+  install_and_test_spack_stack.sh [--version <ver>] [--env <name>]
+                                  [--spack-root <root_prefix>]
+                                  [--config-repo <path>]
+                                  [--env-root <path>]
+  (legacy) install_and_test_spack_stack.sh <ver>
+
+Options:
+  --version       Spack-Stack version (default: 1.7.0)
+  --env           Environment name    (default: mpas-bundle)
+  --spack-root    Base directory for Spack-Stack trees (default: /mnt/beegfs/das.group)
+  --config-repo   Path to this config repo (default: /mnt/beegfs/$USER/spack-egeon)
+  --env-root      Directory holding per-env files (default: $HOME/.spack)
+  --help          Show this help
+
+Notes:
+- CLI options have priority over environment variables, which have priority over defaults.
+- The legacy positional "<ver>" is still accepted for backward compatibility.
+EOU
+}
+
+# tiny helpers (only define if not present)
+type die >/dev/null 2>&1 || die() { echo "[ERROR] $*" >&2; exit 1; }
+type log >/dev/null 2>&1 || log() { echo "$*"; }
+
+# Seed with defaults
+SPACK_VERSION="$SPACK_VERSION_DEFAULT"
+ENV_NAME="$ENV_NAME_DEFAULT"
+ROOT_PREFIX="$ROOT_PREFIX_DEFAULT"
+EGEON_CONFIG_REPO="$CONFIG_REPO_DEFAULT"
+SPACK_ENV_ROOT="$ENV_ROOT_DEFAULT"
+CLEAN_ENV=false
+
+# Legacy positional "1.7.0" support (if first arg looks like a version)
+if [[ $# -ge 1 && "$1" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+  SPACK_VERSION="$1"; shift
+fi
+
+# Parse long options
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version)
+      [[ $# -ge 2 ]] || die "Missing value for --version"
+      SPACK_VERSION=$2; shift 2 ;;
+    --env)
+      [[ $# -ge 2 ]] || die "Missing value for --env"
+      ENV_NAME=$2; shift 2 ;;
+    --spack-root)
+      [[ $# -ge 2 ]] || die "Missing value for --spack-root"
+      ROOT_PREFIX=$2; shift 2 ;;
+    --config-repo)
+      [[ $# -ge 2 ]] || die "Missing value for --config-repo"
+      EGEON_CONFIG_REPO=$2; shift 2 ;;
+    --env-root)
+      [[ $# -ge 2 ]] || die "Missing value for --env-root"
+      SPACK_ENV_ROOT=$2; shift 2 ;;
+    --clean-env)
+      CLEAN_ENV=true; shift ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      die "Unknown option: $1 (use --help)" ;;
+  esac
+done
+
+
+# CONFIGURATION (derived)
+# -----------------------------------------------------------------------------
+# Spack-Stack tree for this version under the chosen root prefix
+export SPACK_VERSION
+export ENV_NAME
+export ROOT_PREFIX
+export EGEON_CONFIG_REPO
+export SPACK_ENV_ROOT
+
+# Root of the spack-stack clone for this version
+export SPACK_DIR="${SPACK_DIR:-${ROOT_PREFIX}/spack-stack_${SPACK_VERSION}}"
+
+# Path to the Spack checkout used by spack-stack
+export SPACK_ROOT="${SPACK_ROOT:-${SPACK_DIR}/spack}"
+
+# Module Core path produced by spack-stack for this environment
+export MODULE_CORE_PATH="${MODULE_CORE_PATH:-${SPACK_DIR}/envs/${ENV_NAME}/install/modulefiles/Core}"
+
+# Where to write per-environment activation files (start script, env.meta, env.modules.sh)
+# You can set SPACK_ENV_DIR explicitly, or use SPACK_ENV_ROOT/<ENV_NAME> (default).
+export SPACK_ENV_DIR="${SPACK_ENV_DIR:-${SPACK_ENV_ROOT}/${ENV_NAME}}"
+
+# (optional) echo the resolved configuration
+log "[INFO] Version     : ${SPACK_VERSION}"
+log "[INFO] Environment : ${ENV_NAME}"
+log "[INFO] Root prefix : ${ROOT_PREFIX}"
+log "[INFO] Stack dir   : ${SPACK_DIR}"
+log "[INFO] Spack root  : ${SPACK_ROOT}"
+log "[INFO] Core modules: ${MODULE_CORE_PATH}"
+log "[INFO] Env files   : ${SPACK_ENV_DIR}"
 
 # CONFIGURAÇÕES DE CACHE
 export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
@@ -23,7 +126,11 @@ mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
 # LIMPEZA DE AMBIENTE
 echo "[INFO] Removendo cache local do Spack..."
 rm -rf ~/.cache/spack
-rm -rf ~/.spack
+
+if $CLEAN_ENV; then
+  [[ -n ${SPACK_ENV_DIR:-} ]] || die "SPACK_ENV_DIR not defined!"
+  rm -rf -- "${SPACK_ENV_DIR}"
+fi
 
 echo "[INFO] Limpando variáveis de ambiente de versões anteriores do Spack..."
 unset SPACK_ENV
@@ -89,6 +196,8 @@ echo "[INFO] Instalando pacotes do ambiente..."
 spack install 2>&1 | tee log.install
 
 # Verificação de sucesso da instalação
+test ${PIPESTATUS[0]} -eq 0 || { echo "[ERROR] spack install failed"; exit 1; }
+
 if [ ! -d "$SPACK_DIR/envs/$ENV_NAME/install/modulefiles" ]; then
     echo "[ERROR] Instalação falhou. Diretório de módulos não foi criado."
     exit 1
@@ -218,8 +327,27 @@ echo "[INFO] Verificando arquivos gerados..."
 ncdump test.nc | head -n 5 || echo "[WARNING] Erro ao usar ncdump"
 h5dump test.h5 | head -n 5 || echo "[WARNING] Erro ao usar h5dump"
 
+# 1) metadata file for the starter (env.meta)
+mkdir -p "${SPACK_ENV_DIR}" || echo "[WARNING] Erro ao criar $SPACK_ENV_DIR"
+cat > "${SPACK_ENV_DIR}/env.meta" <<EOF
+# Generated by install_and_test_spack_stack.sh
+export SPACK_ROOT="${SPACK_ROOT}"
+export STACK_DIR="${SPACK_DIR}"
+export MODULE_ROOT="${MODULE_CORE_PATH%/Core}"
+export ENV_NAME="${ENV_NAME}"
+EOF
+log "[INFO] Wrote ${SPACK_ENV_DIR}/env.meta"
+
+# 2) per-environment module list (copied from template if present)
+TEMPLATE_DIR="${EGEON_CONFIG_REPO}/configs/templates/${ENV_NAME}"
+if [[ -f "${TEMPLATE_DIR}/modules.sh" ]]; then
+  install -D -m 0644 "${TEMPLATE_DIR}/modules.sh" "${SPACK_ENV_DIR}/env.modules.sh"
+  log "[INFO] Installed module list: ${SPACK_ENV_DIR}/env.modules.sh"
+else
+  log "[WARN] No modules.sh in ${TEMPLATE_DIR}; starter will use built-in defaults."
+fi
+
 # GERANDO SCRIPT DE ATIVAÇÃO
-mkdir -p $SPACK_ENV_DIR || echo "[WARNING] Erro ao criar $SPACK_ENV_DIR"
 OUTPUT="$SPACK_ENV_DIR/start_spack_bundle.sh"
 {
    printf '%s\n' '#!/usr/bin/env bash'

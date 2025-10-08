@@ -2,11 +2,13 @@
 ###############################################################################
 # start_spack_bundle.sh
 # -----------------------------------------------------------------------------
-# Activate the **shared Spack‑Stack environment** (mpas‑bundle) on Egeon.
+# Activate a **shared Spack-Stack environment** on Egeon
+# (e.g., mpas-bundle, obsproc-bundle).
 # -----------------------------------------------------------------------------
 # Maintainer : João Gerd Zell de Mattos <joao.gerd@gmail.com>
 # Created    : 2025‑04‑?? (original version)
-# Last update: 2025‑06‑05  (added disable_conda helper)
+#      update: 2025‑06‑05  (added disable_conda helper)
+# Last update: 2025-08-20  (multi-bundle docs; optional per-env module lists)
 #
 # PURPOSE
 # =======
@@ -32,6 +34,24 @@
 #     --spack-root   Override root path    (default: /mnt/beegfs/das.group)
 #
 # The script is meant to be *sourced*, not executed, so that exported variables
+# persist in the caller shell (e.g. `source start_spack_bundle.sh`).
+#
+# EXAMPLES
+# --------
+#   source start_spack_bundle.sh
+#   source start_spack_bundle.sh --env mpas-bundle
+#   source start_spack_bundle.sh --env obsproc-bundle
+#   source start_spack_bundle.sh --version 1.7.0 --spack-root /mnt/beegfs/das.group
+#
+# ENV-SPECIFIC MODULE LISTS (optional)
+# ------------------------------------
+# If present, the script will source:
+#   ~/.spack/<ENV_NAME>/env.modules.sh
+# providing arrays ESSENTIALS / EXTRA_PKGS / MPI_PKGS to load. 
+#
+# IMPORTANT
+# ---------
+# This script is meant to be *sourced*, not executed, so that exported variables
 # persist in the caller shell (e.g. `source start_spack_bundle.sh`).
 #
 # EXIT CODES
@@ -68,156 +88,239 @@ disable_conda() {
               _CONDA_ROOT
         
         echo "[ OK ] All Conda environments have been disabled."
-    else
+    } else
         echo "[ OK ] No active Conda environment detected."
     fi
 }
 
 ###############################################################################
+# Pequenos utilitários de log/erro (mantidos como no original)
+###############################################################################
+_log() { printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*"; }
+_die() { _log "[ERROR] $*"; return 1 2>/dev/null || exit 1; }
+_load_module() { module load "$1" 2>/dev/null || _log "[WARN] module not found: $1"; }
+
+###############################################################################
+# !FUNCTION: parse_args
+# !DESCRIPTION:
+#   Parse CLI options into globals: SPACK_VERSION, ENV_NAME, ROOT_PREFIX.
+###############################################################################
+parse_args() {
+  SPACK_VERSION=${SPACK_VERSION:-1.7.0}
+  ENV_NAME=${ENV_NAME:-mpas-bundle}
+  ROOT_PREFIX=${ROOT_PREFIX:-/mnt/beegfs/das.group}
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --version)     SPACK_VERSION="$2"; shift 2 ;;
+      --env)         ENV_NAME="$2";      shift 2 ;;
+      --spack-root)  ROOT_PREFIX="$2";   shift 2 ;;
+      *) _die "Unknown option: $1" ;;
+    esac
+  done
+}
+
+###############################################################################
+# !FUNCTION: resolve_paths
+# !DESCRIPTION:
+#   Compute paths for Spack root, env path and Core modules path. Validate all.
+###############################################################################
+resolve_paths() {
+  SPACK_ROOT="$ROOT_PREFIX/spack-stack_$SPACK_VERSION"
+  SPACK_ENV_PATH="$SPACK_ROOT/envs/$ENV_NAME"
+  MODULE_CORE_PATH="$SPACK_ENV_PATH/install/modulefiles/Core"
+
+  [[ -d "$SPACK_ROOT"      ]] || _die "Spack-Stack root not found: $SPACK_ROOT"
+  [[ -f "$SPACK_ROOT/setup.sh" ]] || _die "setup.sh not found at: $SPACK_ROOT/setup.sh"
+  [[ -d "$SPACK_ENV_PATH"  ]] || _die "Spack environment not found: $SPACK_ENV_PATH"
+  [[ -d "$MODULE_CORE_PATH" ]] || _die "Core module path not found: $MODULE_CORE_PATH"
+}
+
+###############################################################################
+# !FUNCTION: spack_bootstrap
+# !DESCRIPTION:
+#   Put Spack on PATH, disable local scopes, source setup.sh and set caches.
+###############################################################################
+spack_bootstrap() {
+  _log "[INFO] Activating Spack ($SPACK_VERSION) at $SPACK_ROOT …"
+  export PATH="$SPACK_ROOT/bin:$PATH"
+  export SPACK_DISABLE_LOCAL_CONFIG=true
+
+  local _oldpwd="$PWD"
+  cd "$SPACK_ROOT"
+  # shellcheck disable=SC1091
+  source "./setup.sh"
+  cd "$_oldpwd"
+
+  # offload caches to BeeGFS
+  export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
+  export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
+  mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
+
+  command -v spack >/dev/null || _die "spack not in PATH after activation."
+}
+
+###############################################################################
+# !FUNCTION: spack_activate_env
+# !DESCRIPTION:
+#   Activate the requested Spack environment.
+###############################################################################
+spack_activate_env() {
+  _log "[INFO] Activating Spack environment '$ENV_NAME' …"
+  spack env activate "$SPACK_ENV_PATH"
+}
+
+###############################################################################
+# !FUNCTION: ensure_lmod
+# !DESCRIPTION:
+#   Ensure the 'module' command is available and add Core module path.
+###############################################################################
+ensure_lmod() {
+  type module &>/dev/null || {
+    [[ -f /etc/profile.d/modules.sh ]] && . /etc/profile.d/modules.sh || true
+    [[ -f /usr/share/lmod/lmod/init/bash ]] && . /usr/share/lmod/lmod/init/bash || true
+  }
+  type module &>/dev/null || _die "'module' command not found; please init Lmod"
+  module use "$MODULE_CORE_PATH"
+}
+
+###############################################################################
+# !FUNCTION: load_env_module_lists
+# !DESCRIPTION:
+#   Source ~/.spack/<ENV_NAME>/env.modules.sh if present to get arrays:
+#   ESSENTIALS, EXTRA_PKGS, MPI_PKGS.
+###############################################################################
+load_env_module_lists() {
+  ENV_MODULES_FILE="${HOME}/.spack/${ENV_NAME}/env.modules.sh"
+  if [[ -f "$ENV_MODULES_FILE" ]]; then
+    _log "[INFO] Using environment module list: $ENV_MODULES_FILE"
+    # shellcheck disable=SC1090
+    . "$ENV_MODULES_FILE"
+  else
+    _die "No env.modules.sh found for '${ENV_NAME}' ."
+  fi
+}
+
+###############################################################################
+# !FUNCTION: load_module_sets
+# !DESCRIPTION:
+#   Load ESSENTIALS, EXTRA_PKGS and MPI_PKGS arrays (if defined).
+###############################################################################
+load_module_sets() {
+  _log "[INFO] Loading essential modules ..."
+  for m in "${ESSENTIALS[@]:-}"; do _load_module "$m"; done
+
+  _log "[INFO] Loading standard modules ..."
+  for m in "${EXTRA_PKGS[@]:-}"; do _load_module "$m"; done
+
+  _log "[INFO] Loading MPI deps modules ..."
+  for m in "${MPI_PKGS[@]:-}"; do _load_module "$m"; done
+}
+
+###############################################################################
+# !FUNCTION: export_core_vars_and_patch_ld
+# !DESCRIPTION:
+#   Export NETCDF/HDF5 dirs (if found) and patch LD_LIBRARY_PATH.
+###############################################################################
+export_core_vars_and_patch_ld() {
+  _log "[INFO] Updating LD_LIBRARY_PATH..."
+  NETCDF_DIR="$(spack location -i netcdf-c    2>/dev/null || true)"
+  NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"
+  HDF5_DIR="$(spack location -i hdf5         2>/dev/null || true)"
+
+  [[ -n "$NETCDF_DIR"     ]] && export NETCDF_DIR
+  [[ -n "$NETCDF_CXX_DIR" ]] && export NETCDF_CXX_DIR
+  [[ -n "$HDF5_DIR"       ]] && export HDF5_DIR
+
+  for libdir in "$NETCDF_DIR/lib" "$NETCDF_CXX_DIR/lib" "$HDF5_DIR/lib"; do
+    [[ -d "$libdir" ]] && export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
+  done
+}
+
+###############################################################################
+# !FUNCTION: mark_env_active
+# !DESCRIPTION:
+#   Set an upper-case guard variable to avoid re-activation.
+###############################################################################
+mark_env_active() {
+  ENV_FLAG="$(tr '[:lower:]-' '[:upper:]_' <<< "$ENV_NAME")_ENV_ACTIVE"
+  export "$ENV_FLAG"=1
+}
+
+###############################################################################
+# !FUNCTION: is_env_already_active
+# !DESCRIPTION:
+#   Return 0 if guard variable indicates env is already active.
+###############################################################################
+is_env_already_active() {
+  local flag
+  flag="$(tr '[:lower:]-' '[:upper:]_' <<< "$ENV_NAME")_ENV_ACTIVE"
+  [[ ${!flag:-0} -eq 1 ]]
+}
+
+###############################################################################
 # !FUNCTION: activate_spack
 # !DESCRIPTION:
-#   Sources Spack, activates the desired environment, loads curated module
-#   sets, and exports key variables so that the MPAS‑JEDI tool‑chain becomes
-#   available in the current shell session.
+#   Orquestra a ativação: parse, valida, Spack, env, Lmod, módulos e exports.
 ###############################################################################
 activate_spack () {
   ###########################################################################
   # Save the current shell flags so we can restore them later.              #
   ###########################################################################
   local _old_set
-  _old_set=$(set +o)       # captures output like: "set +o errexit +o nounset …"
+  _old_set=$(set +o)   # e.g. "set +o errexit +o nounset …"
 
   ###########################################################################
-  # Enable “strict mode” **only** inside this function.                     #
-  # -E  : propagate ERR traps into functions and command substitutions      #
-  # -e  : abort as soon as any command returns a non-zero status            #
-  # -u  : abort if an undefined variable is referenced                      #
-  # -o pipefail : a pipeline fails if **any** command in it fails           #
+  # Strict mode apenas dentro desta função                                  #
   ###########################################################################
   set -Eeuo pipefail
 
   ###########################################################################
-  # If an error occurs, print a helpful message.                             #
-  # If we’re still inside the function, `return 2`; otherwise fall back to   #
-  # `exit 2` so the script run with “bash script.sh” still stops.            #
+  # Trap de erro com retorno 2 (mantido no mesmo formato semântico)         #
   ###########################################################################
   trap '{
       printf "[ERROR] %s – line %d\n" "${BASH_SOURCE[0]}" $LINENO >&2
       return 2 2>/dev/null || exit 2
   }' ERR
 
-  # -------- helpers ------------------------------------------------------------
-  log() { printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*" ; }
-  die() { log "[ERROR] $*" ; return 1 2>/dev/null || exit 1; }
-  load_module() { module load "$1" 2>/dev/null || log "[WARN] module not found: $1" ; }
-  
-  # -------- argument parsing ---------------------------------------------------
-  SPACK_VERSION=1.7.0
-  ENV_NAME=mpas-bundle
-  ROOT_PREFIX="/mnt/beegfs/das.group"
-  
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --version)   SPACK_VERSION="$2" ; shift 2 ;;
-      --env)       ENV_NAME="$2"     ; shift 2 ;;
-      --spack-root) ROOT_PREFIX="$2" ; shift 2 ;;
-      *) die "Unknown option: $1" ;;
-    esac
-  done
-  
-  # -------- paths --------------------------------------------------------------
-  SPACK_ROOT="$ROOT_PREFIX/spack-stack_$SPACK_VERSION"
-  SPACK_ENV_PATH="$SPACK_ROOT/envs/$ENV_NAME"
-  MODULE_CORE_PATH="$SPACK_ENV_PATH/install/modulefiles/Core"
-  
-  [[ -d "$SPACK_ROOT" ]]      || die "Spack root not found: $SPACK_ROOT"
-  [[ -d "$SPACK_ENV_PATH" ]]  || die "Spack env not found:  $SPACK_ENV_PATH"
-  
-  # Avoid repeated activation
-  ENV_FLAG="$(tr '[:lower:]-' '[:upper:]_' <<< "$ENV_NAME")_ENV_ACTIVE"
-  if [[ ${!ENV_FLAG:-0} -eq 1 ]]; then
-    log "[INFO] Environment '$ENV_NAME' already active – skipping re‑activation."
+  local START_TIME END_TIME
+
+  # -------- argumentos e paths ----------------------------------------------
+  parse_args "$@"
+  resolve_paths
+
+  # -------- evitar reativação ------------------------------------------------
+  if is_env_already_active; then
+    _log "[INFO] Environment '$ENV_NAME' already active – skipping re‑activation."
+    trap - ERR; eval "$_old_set"
     return 0 2>/dev/null || exit 0
   fi
-  
+
   START_TIME=$(date +%s)
-  
-  # -------- step 1: source Spack ----------------------------------------------
-  log "[INFO] Activating Spack ($SPACK_VERSION) at $SPACK_ROOT …"
-  export PATH="$SPACK_ROOT/bin:$PATH"
-  
-  # Prevent Spack from using or writing to user/system config scopes
-  export SPACK_DISABLE_LOCAL_CONFIG=true
 
-  # enter Spack root to avoid relative‑path issues inside setup.sh
-  OLDPWD_SPACK="$PWD"
-  cd "$SPACK_ROOT"
-  source "./setup.sh"
-  cd "$OLDPWD_SPACK"
-  
-  # user caches on BeeGFS to offload /home
-  export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
-  export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
-  mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
-  
-  command -v spack >/dev/null || die "spack not in PATH after activation."
-  
-  # -------- step 2: activate env ----------------------------------------------
-  log "[INFO] Activating Spack environment '$ENV_NAME' …"
-  spack env activate "$SPACK_ENV_PATH"
-  
-  # -------- step 3: load modules ----------------------------------------------
-  module use "$MODULE_CORE_PATH"
-  
-  log "[INFO] Loading essential modules ..."
-  ESSENTIALS=(stack-gcc/9.4.0 stack-openmpi/4.1.1 stack-python/3.10.13)
-  for m in "${ESSENTIALS[@]}";   do load_module "$m"; done
-  
-  log "[INFO] Loading standard modules ..."
-  EXTRA_PKGS=(
-    boost/1.84.0 jedi-cmake/1.4.0 python/3.10.13 c-blosc/1.21.5 libbsd/0.11.7
-    qhull/2020.2 ca-certificates-mozilla/2023-05-30 libmd/1.0.4 snappy/1.1.10
-    cmake/3.23.1 libxcrypt/4.4.35 sqlite/3.43.2 curl/8.4.0 nghttp2/1.57.0
-    ecbuild/3.7.2 openblas/0.3.24 eigen/3.4.0 tar/1.34 gcc-runtime/9.4.0
-    py-pip/23.1.2 udunits/2.2.28 gettext/0.21.1 py-pycodestyle/2.11.0
-    util-linux-uuid/2.38.1 gmake/4.3 py-setuptools/63.4.3 zlib-ng/2.1.5
-    gsl-lite/0.37.0 py-wheel/0.41.2 zstd/1.5.2
-  )
-  for m in "${EXTRA_PKGS[@]}";    do load_module "$m"; done
-  
-  log "[INFO] Loading MPI deps modules ..."
-  MPI_PKGS=(
-    atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2
-    eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx4/4.3.1
-    gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3
-  )
-  for m in "${MPI_PKGS[@]}";      do load_module "$m"; done
-  
-  # -------- step 4: export dirs + patch LD_LIBRARY_PATH ------------------------
-  
-  log "[INFO] Updating LD_LIBRARY_PATH..."
-  NETCDF_DIR="$(spack location -i netcdf-c 2>/dev/null || true)"
-  NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"
-  HDF5_DIR="$(spack location -i hdf5 2>/dev/null || true)"
-  
-  [[ -n "$NETCDF_DIR" ]]      && export NETCDF_DIR
-  [[ -n "$NETCDF_CXX_DIR" ]]  && export NETCDF_CXX_DIR
-  [[ -n "$HDF5_DIR" ]]        && export HDF5_DIR
-  
-  for libdir in "$NETCDF_DIR/lib" "$NETCDF_CXX_DIR/lib" "$HDF5_DIR/lib"; do
-    [[ -d "$libdir" ]] && export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
-  done
-  
+  # -------- step 1: Spack ----------------------------------------------------
+  spack_bootstrap
+
+  # -------- step 2: ativar env ----------------------------------------------
+  spack_activate_env
+
+  # -------- step 3: Lmod + módulos ------------------------------------------
+  ensure_lmod
+  load_env_module_lists
+  load_module_sets
+
+  # -------- step 4: export + LD_LIBRARY_PATH --------------------------------
+  export_core_vars_and_patch_ld
+
   END_TIME=$(date +%s)
-  
-  log "[INFO] Environment '$ENV_NAME' is ready (Δt=$((END_TIME-START_TIME)) s)"
-  export "$ENV_FLAG"=1
+  _log "[INFO] Environment '$ENV_NAME' is ready (Δt=$((END_TIME-START_TIME)) s)"
+  mark_env_active
 
   ###########################################################################
-  # Restore the original shell flags and remove our ERR trap                #
+  # Restore flags e remover trap                                             #
   ###########################################################################
-  trap - ERR        # remove our trap
-  eval "$_old_set"  # restore flags (errexit, nounset, etc.)
+  trap - ERR
+  eval "$_old_set"
 }
 
 # Disable Conda (if necessary) before activating Spack
@@ -225,3 +328,4 @@ disable_conda
 
 # Execute the function, forwarding any CLI arguments the user provides.
 activate_spack "$@"
+
