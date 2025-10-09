@@ -42,7 +42,7 @@
 #   --env-name NAME         Environment/bundle name (default: ${ENV_NAME:-mpas-bundle})
 #   --env-yaml PATH         Template spack.yaml (site-aware) [auto-detected]
 #   --site-config DIR       Site configuration directory (compilers.yaml, packages.yaml, etc.)
-#   --jobs N                Parallel spack build jobs (default: ${JOBS:-8})
+#   --jobs N                Parallel spack build jobs (default: ${BUILD_JOBS:-8})
 #   --timeout N             Timeout per command (seconds; default: ${TIMEOUT:-900})
 #   --gcc-version VER       Minimum GCC required (default: ${GCC_VERSION:-12.3.0})
 #   --cmake-min VER         Minimum CMake required (default: ${CMAKE_MIN_VERSION:-3.21})
@@ -57,7 +57,7 @@
 #
 # !ENVIRONMENT:
 #   verbose, debug, dry_run  (from __helpers__.sh)
-#   SPACK_STACK_VERSION, ROOT_PREFIX, ENV_NAME, JOBS, TIMEOUT
+#   SPACK_STACK_VERSION, ROOT_PREFIX, ENV_NAME, BUILD_JOBS, TIMEOUT
 #   /etc/profile.d/lmod.sh is sourced when available to enable module systems.
 #
 # !EXIT STATUS:
@@ -304,7 +304,7 @@ trap on_exit EXIT
 # !OUTPUTS:
 #   Sets environment variables consumed by subsequent script phases:
 #   SITE_NAME, SPACK_STACK_VERSION, ROOT_PREFIX, ENV_NAME, ENV_YAML,
-#   SITE_CONFIG, JOBS, TIMEOUT, GCC_VERSION, CMAKE_MIN_VERSION,
+#   SITE_CONFIG, BUILD_JOBS, TIMEOUT, GCC_VERSION, CMAKE_MIN_VERSION,
 #   OPENMPI_MIN_VERSION, HDF5_MIN_VERSION, DO_STACK, DO_ENV, DO_TESTS,
 #   WITH_BASELINE_TESTS, WITH_ENV_TESTS.
 #
@@ -332,7 +332,7 @@ _parse_script_args() {
       --env-name)            ENV_NAME="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
       --env-yaml)            ENV_YAML="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
       --site-config)         SITE_CONFIG="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
-      --jobs)                JOBS="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
+      --jobs)                BUILD_JOBS="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
       --timeout)             TIMEOUT="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
       --gcc-version)         GCC_VERSION="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
       --cmake-min)           CMAKE_MIN_VERSION="${leftover_args[0]}"; leftover_args=("${leftover_args[@]:1}");;
@@ -349,7 +349,7 @@ _parse_script_args() {
     esac
   done
   leftover_args=("${rest[@]}")
-  export SPACK_STACK_VERSION ROOT_PREFIX ENV_NAME JOBS TIMEOUT
+  export SPACK_STACK_VERSION ROOT_PREFIX ENV_NAME BUILD_JOBS TIMEOUT
 #EOC
 }
 
@@ -840,15 +840,15 @@ bootstrap_spack() {
 #          spack env create -d ${env_dir}
 #          spack env activate -d ${env_dir}
 #          spack -e ${env_dir} concretize -f
-#          spack -e ${env_dir} install -j ${JOBS} --fail-fast
+#          spack -e ${env_dir} install -j ${BUILD_JOBS} --fail-fast
 #      - The concretization ensures all dependencies are fully resolved.
-#      - Installation uses parallel jobs defined by ${JOBS}.
+#      - Installation uses parallel jobs defined by ${BUILD_JOBS}.
 #
 #   5) **Completion**
 #      - Logs a success message upon successful installation of the environment.
 #
 # !INPUTS:
-#   - ROOT_PREFIX, ENV_NAME, ENV_YAML, JOBS
+#   - ROOT_PREFIX, ENV_NAME, ENV_YAML, BUILD_JOBS
 #
 # !OUTPUTS:
 #   - Creates ${ROOT_PREFIX}/envs/${ENV_NAME}/spack.yaml (if missing)
@@ -887,7 +887,7 @@ create_env() {
   _run_with_timeout spack env create -d "${env_dir}" || true
   _run_with_timeout spack env activate -d "${env_dir}"
   _run_with_timeout spack -e "${env_dir}" concretize -f
-  _run_with_timeout spack -e "${env_dir}" install -j "${JOBS}" --fail-fast
+  _run_with_timeout spack -e "${env_dir}" install -j "${BUILD_JOBS}" --fail-fast
   _log_ok "Environment %s installed at %s" "${ENV_NAME}" "${env_dir}"
   #EOC
 }
@@ -1257,7 +1257,7 @@ test_phase() {
 #   3. **Execution Logging**
 #      - Logs contextual information (script name, hostname, and root paths).
 #      - Reports current parameters: ROOT_PREFIX, SPACK_STACK_VERSION,
-#        ENV_NAME, and JOBS.
+#        ENV_NAME, and BUILD_JOBS.
 #
 #   4. **Phase Execution**
 #      - Conditionally executes each phase according to control flags:
@@ -1295,7 +1295,7 @@ main() {
   _parse_script_args "$@"
   ensure_dirs
   _log_info "[BEGIN] %s on %s" "${_script}" "${_host}"
-  _log_info "Root: %s | Spack-Stack: %s | Env: %s | Jobs: %s" "${ROOT_PREFIX}" "${SPACK_STACK_VERSION}" "${ENV_NAME}" "${JOBS}"
+  _log_info "Root: %s | Spack-Stack: %s | Env: %s | Jobs: %s" "${ROOT_PREFIX}" "${SPACK_STACK_VERSION}" "${ENV_NAME}" "${BUILD_JOBS}"
 
   if [[ $DO_STACK -eq 1 ]]; then install_stack; fi
   if [[ $DO_ENV   -eq 1 ]]; then install_env; fi
