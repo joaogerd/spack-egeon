@@ -22,26 +22,9 @@ ENV              ?= mpas-bundle
 VERSION          ?= 1.8.0                          # spack-stack tag/branch
 SITE             ?= egeon
 
-<<<<<<< HEAD
 ROOT_PREFIX      ?= /mnt/beegfs/das.group          # onde fica spack-stack (novo layout)
 SELF_ROOT_PREFIX ?= /mnt/beegfs/$(USER)
 ENV_ROOT         ?= $(HOME)/.spack
-=======
-# Where the compiled Spack-Stack trees live (root prefix)
-ROOT_PREFIX ?= /mnt/beegfs/das.group
-SELF_ROOT_PREFIX ?= /mnt/beegfs/$(USER)
-
-# Fallbacks even if variables are defined but empty in the environment
-ROOT_PREFIX := $(strip $(ROOT_PREFIX))
-ifeq ($(ROOT_PREFIX),)
-  ROOT_PREFIX := /mnt/beegfs/das.group
-endif
-
-SELF_ROOT_PREFIX := $(strip $(SELF_ROOT_PREFIX))
-ifeq ($(SELF_ROOT_PREFIX),)
-  SELF_ROOT_PREFIX := /mnt/beegfs/$(USER)
-endif
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 
 CONFIG_REPO      ?= $(CURDIR)
 CONFIG_DIR       ?= $(CURDIR)/configs/templates
@@ -59,7 +42,6 @@ JOBS             ?= 8
 ALIAS_BEGIN := "# >>> spack-egeon aliases >>>"
 ALIAS_END   := "# <<< spack-egeon aliases <<<"
 
-<<<<<<< HEAD
 # Strip/fallback
 ENV              := $(strip $(ENV))
 VERSION          := $(strip $(VERSION))
@@ -71,24 +53,11 @@ SITE_CONFIG_DIR  := $(strip $(SITE_CONFIG_DIR))
 STARTER_SRC      := $(strip $(STARTER_SRC))
 STARTER_DST      := $(strip $(STARTER_DST))
 BASHRC           := $(strip $(BASHRC))
-=======
-# --------------------------- Sanitize / Fallbacks ----------------------------
-# Strip accidental spaces and fallback if env provided empty values
-ENV            := $(strip $(ENV))
-VERSION        := $(strip $(VERSION))
-ENV_ROOT       := $(strip $(ENV_ROOT))
-CONFIG_REPO    := $(strip $(CONFIG_REPO))
-CONFIG_DIR     := $(strip $(CONFIG_DIR))
-STARTER_SRC    := $(strip $(STARTER_SRC))
-STARTER_DST    := $(strip $(STARTER_DST))
-BASHRC         := $(strip $(BASHRC))
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 
 ROOT_PREFIX      := $(if $(strip $(ROOT_PREFIX)),$(strip $(ROOT_PREFIX)),/mnt/beegfs/das.group)
 SELF_ROOT_PREFIX := $(if $(strip $(SELF_ROOT_PREFIX)),$(strip $(SELF_ROOT_PREFIX)),/mnt/beegfs/$(USER))
 
 # --------------------------- Derived (re-evaluated) ---------------------------
-<<<<<<< HEAD
 # Novo layout (sem sufixo de versão no spack-stack)
 SPACK_DIR        = $(ROOT_PREFIX)/spack-stack
 SPACK_ROOT       = $(SPACK_DIR)/spack
@@ -101,40 +70,23 @@ ifeq ($(strip $(MODULE_CORE_PATH)),)
   MODULE_CORE_PATH := $(shell \
     find "$(ROOT_PREFIX)" -type d -path "*/modulefiles/Core" -maxdepth 6 2>/dev/null | head -n1)
 endif
-=======
-# Use recursive assignment (=) so changes to ROOT_PREFIX/ENV/VERSION at recipe
-# time are reflected when used.
-SPACK_DIR        = $(ROOT_PREFIX)/spack-stack_$(VERSION)
-SPACK_ROOT       = $(SPACK_DIR)/spack
-SPACK_ENV_PATH   = $(SPACK_DIR)/envs/$(ENV)
-MODULE_CORE_PATH = $(SPACK_ENV_PATH)/install/modulefiles/Core
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 
 # ----------------------------- Helpers ---------------------------------------
 
 _print_cfg = \
   echo "[INFO] ENV           = '$(ENV)'"; \
   echo "[INFO] VERSION       = '$(VERSION)'"; \
-<<<<<<< HEAD
   echo "[INFO] SITE          = '$(SITE)'"; \
-=======
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
   echo "[INFO] ROOT_PREFIX   = '$(ROOT_PREFIX)'"; \
   echo "[INFO] SELF_ROOT     = '$(SELF_ROOT_PREFIX)'"; \
   echo "[INFO] ENV_ROOT      = '$(ENV_ROOT)'"; \
   echo "[INFO] CONFIG_REPO   = '$(CONFIG_REPO)'"; \
   echo "[INFO] CONFIG_DIR    = '$(CONFIG_DIR)'"; \
-<<<<<<< HEAD
   echo "[INFO] SITE_CONFIG   = '$(SITE_CONFIG_DIR)'"; \
   echo "[INFO] STARTER_SRC   = '$(STARTER_SRC)'"; \
   echo "[INFO] STARTER_DST   = '$(STARTER_DST)'"; \
   echo "[INFO] BASHRC        = '$(BASHRC)'"; \
   echo "[INFO] JOBS          = '$(JOBS)'";
-=======
-  echo "[INFO] STARTER_SRC   = '$(STARTER_SRC)'"; \
-  echo "[INFO] STARTER_DST   = '$(STARTER_DST)'"; \
-  echo "[INFO] BASHRC        = '$(BASHRC)'";
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 
 modules_src = $(CONFIG_DIR)/$(ENV)/modules.sh
 modules_dst = $(ENV_ROOT)/$(ENV)/env.modules.sh
@@ -199,11 +151,7 @@ doctor:
 	  else \
 	    echo "[WARN] Lmod not initialized (continuing)"; \
 	  fi; \
-<<<<<<< HEAD
 	  echo; echo "==> Checking Spack tree..."; \
-=======
-	  echo; echo "==> Checking stack directories..."; \
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 	  if [[ -d "$(SPACK_DIR)" ]]; then \
 	    echo "[OK] Spack-Stack dir exists: $(SPACK_DIR)"; \
 	  else \
@@ -213,19 +161,9 @@ doctor:
 	  setup1="$(SPACK_DIR)/setup.sh"; \
 	  setup2="$(SPACK_DIR)/spack/share/spack/setup-env.sh"; \
 	  spack_setup=""; \
-<<<<<<< HEAD
 	  if [[ -f "$$setup1" ]]; then spack_setup="$$setup1"; echo "[OK] Found: $$setup1"; \
 	  elif [[ -f "$$setup2" ]]; then spack_setup="$$setup2"; echo "[OK] Found: $$setup2"; \
 	  else echo "[ERROR] Spack setup not found under $(SPACK_DIR)"; err=1; fi; \
-=======
-	  if [[ -f "$$setup1" ]]; then \
-	    spack_setup="$$setup1"; echo "[OK] Found: $$setup1"; \
-	  elif [[ -f "$$setup2" ]]; then \
-	    spack_setup="$$setup2"; echo "[OK] Found: $$setup2"; \
-	  else \
-	    echo "[ERROR] Spack setup not found under $(SPACK_ROOT)"; err=1; \
-	  fi; \
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 	  if [[ -n "$$spack_setup" ]]; then \
 	    . "$$spack_setup"; \
 	    if spack --version >/dev/null 2>&1; then \
@@ -234,7 +172,6 @@ doctor:
 	      echo "[ERROR] spack not usable after sourcing $$spack_setup"; err=1; \
 	    fi; \
 	  fi; \
-<<<<<<< HEAD
 	  echo; echo "==> Checking environment dir..."; \
 	  if [[ -d "$(SPACK_ENV_PATH)" ]]; then \
 	    echo "[OK] Env path exists: $(SPACK_ENV_PATH)"; \
@@ -243,41 +180,21 @@ doctor:
 	  fi; \
 	  echo; echo "==> Checking Core modulefiles (best-effort)..."; \
 	  if [[ -n "$(MODULE_CORE_PATH)" && -d "$(MODULE_CORE_PATH)" ]]; then \
-=======
-	  echo; echo "==> Checking Core modulefiles..."; \
-	  if [[ -d "$(MODULE_CORE_PATH)" ]]; then \
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 	    echo "[OK] Core modules dir: $(MODULE_CORE_PATH)"; \
 	    cnt=$$(find "$(MODULE_CORE_PATH)" -maxdepth 1 -type f -name "*.lua" | wc -l | tr -d " "); \
 	    echo "[INFO] Modulefiles in Core: $$cnt"; \
 	    module use "$(MODULE_CORE_PATH)" || true; \
 	    echo "[INFO] module -t avail (first 20 lines):"; module -t avail 2>&1 | sed -n "1,20p"; \
 	  else \
-<<<<<<< HEAD
 	    echo "[INFO] Core modules dir not set or missing; skipping listing."; \
-=======
-	    echo "[WARN] Core modules dir missing: $(MODULE_CORE_PATH)"; \
-	  fi; \
-	  echo; echo "==> Checking per-env light files..."; \
-	  env_modules="$(modules_dst)"; \
-	  if [[ -f "$$env_modules" ]]; then \
-	    echo "[OK] Env module list present: $$env_modules"; \
-	  else \
-	    echo "[WARN] Missing $$env_modules — run: make seed ENV=$(ENV)"; \
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 	  fi; \
 	  echo; echo "==> Permissions sanity..."; \
 	  if [[ -d "$(ROOT_PREFIX)" && -w "$(ROOT_PREFIX)" ]]; then \
 	    echo "[OK] Write access to ROOT_PREFIX: $(ROOT_PREFIX)"; \
 	  else \
 	    echo "[INFO] No write access to ROOT_PREFIX ($(ROOT_PREFIX))"; \
-<<<<<<< HEAD
 	    echo "      - Admin installs: make install-admin"; \
 	    echo "      - Self installs:  make install-self"; \
-=======
-	    echo "      - Admin installs use: make install-admin (requires write)"; \
-	    echo "      - Users can just seed/start or use: make install-self"; \
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 	  fi; \
 	  if [[ -d "$(ENV_ROOT)" ]]; then \
 	    if [[ -w "$(ENV_ROOT)" ]]; then \
@@ -322,11 +239,7 @@ seed: print-config
 seed-mpas-user: ENV ?= mpas-bundle
 seed-mpas-user: seed
 
-<<<<<<< HEAD
 seed-obs-user: ENV ?= obsproc-bundle
-=======
-seed-obs-user: ENV ?= mpas-bundle
->>>>>>> 899212d5bc0c1d02842d325ba6effe65b665853a
 seed-obs-user: seed
 
 seed-all: seed-mpas-user seed-obs-user
@@ -356,7 +269,7 @@ install:
 install-admin: install
 
 install-self:
-	@$(MAKE) install ROOT_PREFIX ?= /mnt/beegfs/das.group
+	@$(MAKE) install ROOT_PREFIX="$(SELF_ROOT_PREFIX)"
 
 # ----------------------------- Starter script --------------------------------
 
@@ -433,4 +346,4 @@ setup-user-self: seed-mpas-user
 	@$(MAKE) install-starter
 	@$(MAKE) add-aliases-self
 	@echo "[DONE] User setup (self stack): try 'use-mpas' or 'use-obs'"
-
+0
