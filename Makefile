@@ -346,4 +346,3 @@ setup-user-self: seed-mpas-user
 	@$(MAKE) install-starter
 	@$(MAKE) add-aliases-self
 	@echo "[DONE] User setup (self stack): try 'use-mpas' or 'use-obs'"
-0
