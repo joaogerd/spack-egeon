@@ -97,6 +97,7 @@ __HERE__="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if   [[ -r "${__HERE__}/__helpers__.sh" ]]; then source "${__HERE__}/__helpers__.sh"
 elif [[ -r "./__helpers__.sh"          ]]; then source "./__helpers__.sh"
 elif [[ -r "${__HERE__}/lib/__helpers__.sh" ]]; then source "${__HERE__}/lib/__helpers__.sh"
+elif [[ -r "${__HERE__}/utils/__helpers__.sh" ]]; then source "${__HERE__}/utils/__helpers__.sh"
 else
   echo "[ERROR] __helpers__.sh not found; this script requires it." >&2
   exit 2
@@ -1342,7 +1343,7 @@ main() {
 
 #BOC
 # Initialize modules (optional)
-[[ -r /etc/profile.d/lmod.sh ]] && source /etc/profile.d/lmod.sh || true
+_safe_source /etc/profile.d/lmod.sh || true
 
 # Execute main routine
 main "$@"

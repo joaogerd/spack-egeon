@@ -456,6 +456,61 @@ _debug_trace_off() {
   set +x
 }
 #EOC
+
+#BOP
+# !ROUTINE: _safe_source
+#
+# !INTERFACE:
+#   _safe_source <file>
+#
+# !FUNCTION:
+#   Sources a shell script safely under a global `set -u` (nounset) regime by
+#   temporarily disabling nounset for the duration of the sourcing operation.
+#
+# !DESCRIPTION:
+#   Many third-party initialization scripts (e.g., /etc/profile.d/lmod.sh, SLURM
+#   env hooks) reference environment variables that may be undefined when the
+#   installer runs with `set -u`. Directly sourcing such files can trigger
+#   “unbound variable” errors and abort execution.
+#
+#   This helper:
+#     1) Verifies the target file is readable; returns success if it is absent.
+#     2) Temporarily disables nounset (`set +u`) in a controlled scope.
+#     3) Sources the target file (no shellcheck path validation).
+#     4) Restores nounset (`set -u`) and propagates the sourced script’s status.
+#
+#   Use this wrapper whenever you need to source external, non-owned scripts
+#   whose contents you cannot control, preserving the safety of `set -Eeuo pipefail`
+#   in the rest of the installer.
+#
+# !INPUTS:
+#   - $1: Path to the script to be sourced.
+#
+# !OUTPUTS:
+#   - Returns 0 if the file is absent/unreadable (no-op) or if sourcing succeeds.
+#   - Returns the exit status from the sourced script otherwise.
+#
+# !EXAMPLE:
+#   _safe_source /etc/profile.d/lmod.sh || true
+#
+# !SEE ALSO:
+#   install_and_test_spack_stack.sh main epilogue (module init), doctor target in Makefile
+#EOP
+_safe_source() {
+  #BOC
+  # usage: _safe_source /path/to/file.sh
+  local f="$1"
+  [[ -r "$f" ]] || return 0
+  # Temporarily disable nounset while sourcing third-party scripts.
+  set +u
+  # shellcheck source=/dev/null
+  source "$f"
+  local rc=$?
+  set -u
+  return "$rc"
+  #EOC
+}
+
 #BOP
 # !FUNCTION: _dump_cli
 # !DESCRIPTION:
