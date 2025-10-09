@@ -1,0 +1,41 @@
+# config.yaml — Egeon (commented)
+# Defines global build and installation parameters for the Spack-Stack environment.
+# This configuration follows the best practices for shared HPC storage (e.g., BeeGFS),
+# ensuring reproducibility, caching efficiency, and consistent environment setup.
+
+config:
+  # Number of parallel build jobs.
+  # Should be adjusted according to the number of available cores
+  # on the node where builds are executed.
+  build_jobs: ${BUILD_JOBS}
+
+  # Root directory for installed packages.
+  # This path should be accessible to all group members and consistent across nodes.
+  install_tree: ${STACK_ROOT}/${SPACK_STACK_VERSION}/opt
+
+  # Build stage directories.
+  # The first path is persistent (useful for debugging build logs),
+  # while the second ($tempdir) acts as a temporary fallback.
+  build_stage:
+  - ${STACK_ROOT}/${SPACK_STACK_VERSION}/build
+  - $tempdir
+
+  # Source cache directory.
+  # Stores downloaded package sources to prevent repeated downloads
+  # and improve rebuild performance.
+  source_cache: ${STACK_ROOT}/${SPACK_STACK_VERSION}/source_cache
+
+  # Miscellaneous cache directory.
+  # Used by Spack for metadata and auxiliary build files.
+  misc_cache: ${STACK_ROOT}/${SPACK_STACK_VERSION}/misc_cache
+
+  # Dependency resolver (concretizer).
+  # The “clingo” concretizer provides deterministic dependency resolution
+  # and is the recommended choice for modern Spack environments.
+  concretizer: clingo
+
+  # Preferred method for fetching package sources.
+  # Using “curl” ensures compatibility on systems without full wget installation
+  # and provides better error handling for network interruptions.
+  url_fetch_method: curl
+

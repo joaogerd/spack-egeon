@@ -1,0 +1,73 @@
+# modules.yaml — Egeon (commented)
+# Defines Lmod module generation policy for the site.
+# Uses an MPI hierarchy and concise projections to keep module names stable and readable.
+# Safe defaults are provided; UCX/SLURM tuning is left commented for environments with IB.
+
+modules:
+  default:
+    enable:: [lmod]
+
+    lmod:
+      # Core compilers that define the module tree root (Spack will inject the exact gcc version).
+      core_compilers: [gcc]
+
+      # Use an MPI hierarchy (Core -> MPI) so that MPI-dependent packages are namespaced under MPI.
+      hierarchy: [mpi]
+
+      # Shorter hashes keep module names readable while still avoiding collisions.
+      hash_length: 0
+
+      # Projections define how module names are rendered.
+      # - All packages default to "<name>/<version>"
+      # - MPI "stacks" will appear under "mpi/<name>/<version>"
+      projections:
+        all: "{name}/{version}"
+        openmpi: "mpi/{name}/{version}"
+
+      # Autoload dependencies when loading a module (e.g., eckit autoloads its prerequisites).
+      all:
+        autoload: direct
+
+      # Include list keeps the module tree focused on what users actually need to load.
+      include:
+      - openmpi
+      - python
+      - hdf5
+      - netcdf-c
+      - netcdf-fortran
+      - ecbuild
+      - eckit
+      - atlas
+      - fckit
+      - jedi-cmake
+      # optional extras:
+      # - nccmp
+      # - udunits
+      # - gsl-lite
+
+      # --- Optional environment defaults for MPI runtime (safe baseline) ---
+      # These settings avoid fork warnings and force a portable transport (self,tcp).
+      # They can be replaced by UCX settings when IB is validated on the cluster.
+      openmpi:
+        environment:
+          set:
+            OMPI_MCA_btl: "self,tcp"
+            OMPI_MCA_mpi_warn_on_fork: "0"
+
+      # --- Optional UCX/SLURM tuning (enable when IB + UCX + SLURM are validated) ---
+      # For systems with Infiniband and UCX, it is common to prefer pml=ucx and to restrict BTL:
+      # openmpi:
+      #   environment:
+      #     set:
+      #       OMPI_MCA_pml: "ucx"
+      #       OMPI_MCA_btl: "self"
+      #       OMPI_MCA_mpi_warn_on_fork: "0"
+
+    # Prefix inspections expose common paths so users do not need to set them manually.
+    # Adjust if additional paths should be exported as environment variables.
+    prefix_inspections:
+      bin:    [PATH]
+      lib:    [LD_LIBRARY_PATH]
+      lib64:  [LD_LIBRARY_PATH]
+      include:[CPATH]
+

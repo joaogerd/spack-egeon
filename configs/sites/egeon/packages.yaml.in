@@ -1,0 +1,90 @@
+# packages.yaml — Egeon (commented)
+# Purpose: maintain a conservative base (spack-stack 1.8.x) while keeping it
+# modern and stable enough to build and run the JEDI/mpas-jedi ecosystem.
+# This configuration avoids dependency on legacy externals (especially those
+# tied to gcc@9.4.0) and ensures that OpenMPI is built within Spack, allowing
+# optional fabrics/SLURM support when required.
+
+packages:
+  all:
+    # 🔧 Defines the default compiler for this site.
+    # The user or group should bootstrap gcc@12.3.0 using Spack to ensure
+    # that the compiler is properly registered and recognized by the build system.
+    #
+    # Recommended procedure:
+    #   spack install gcc@12.3.0
+    #   spack load gcc@12.3.0
+    #   spack compiler find
+    #
+    # After this process, the compilers.yaml file will be automatically updated
+    # with the correct GCC 12 paths, allowing it to be referenced as the default
+    # compiler for this site configuration.
+    # Default site compiler (bootstrapped automatically by the installer)
+    'compiler:': [gcc@${GCC_VERSION}]
+
+    # ▶️ Ensures that OpenMPI is built within Spack (instead of using a system external),
+    # allowing support for fabrics=ucx and schedulers=slurm when applicable.
+    providers:
+      'mpi:': [openmpi]
+
+    # 🧱 Defines a generic and safe target architecture.
+    # The “core2” target is outdated and not recommended.
+    # If the actual microarchitecture of the cluster CPU (e.g., skylake, zen3)
+    # is known, this value may be adjusted accordingly.
+    target: [x86_64]
+
+  # ========= KEY PINNINGS / VARIANTS =========
+  # CMake: most JEDI stacks require version >= 3.21.
+  cmake:
+    require: '@${CMAKE_MIN_VERSION}:'
+
+  # OpenMPI: conservative base configuration.
+  # If Egeon provides properly configured Infiniband/UCX and SLURM support,
+  # the line below can be replaced with the fabrics/schedulers version.
+  openmpi:
+    require: @${OPENMPI_MIN_VERSION}: +cxx +cxx_exceptions +fortran +legacylaunchers'
+    # For IB/UCX + SLURM (enable when validated on the cluster):
+    # require: '@${OPENMPI_MIN_VERSION}: +cxx +cxx_exceptions +fortran fabrics=ucx schedulers=slurm +legacylaunchers'
+
+  # HDF5 / NetCDF: standard variants commonly used in the JEDI ecosystem.
+  hdf5:
+    require: '@1.12: +hl +fortran +shared'
+
+  netcdf-c:
+    require: '+shared'
+
+  netcdf-fortran:
+    require: '+shared'
+
+  # ========= JEDI ECOSYSTEM CORE PACKAGES =========
+  # Versions are not explicitly pinned; they follow the definitions from
+  # spack-stack 1.8.x. Versions can be fixed later if required.
+  eckit: {}
+  atlas: {}
+  fckit: {}
+  ecbuild: {}
+  jedi-cmake: {}
+
+  # ========= (OPTIONAL) AUXILIARY UTILITIES =========
+  # It is recommended to keep these packages buildable within Spack and avoid
+  # externals tied to old toolchains. If reusing system modules becomes necessary,
+  # an example declaration is left commented below.
+  # gptl: {}
+  # udunits: {}
+  # nccmp: {}
+  # parallel-netcdf: {}
+  # netcdf-cxx4: {}
+
+  # ========= EXTERNALS (AVOID IN THIS SITE) =========
+  # The original configuration included several externals (autoconf, automake,
+  # pkgconf, openssl, etc.) bound to gcc@9.4.0. These legacy toolchains may cause
+  # ABI conflicts and linking issues. It is recommended to keep them buildable
+  # within Spack whenever possible.
+  # The following block is only an EXAMPLE of how to declare an external package,
+  # kept commented by default.
+  # autoconf:
+  #   externals:
+  #   - spec: autoconf@2.69
+  #     prefix: /path/to/system/autoconf-2.69
+  #     modules: [autoconf/2.69]
+
