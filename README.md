@@ -1,100 +1,230 @@
-# 🧭 Receita para Configurar o Spack-Stack na Máquina Egeon
+# spack-stack-inpe
 
-Esta receita descreve todas as etapas necessárias para instalar e configurar o **Spack-Stack 1.7.0** na máquina **Egeon**, levando em conta o ambiente de módulos e possíveis erros comuns.
+Repositório de configurações institucionais do INPE para uso com o **spack-stack**, com foco atual na máquina **EGEON**.
 
----
+Atualmente, este repositório disponibiliza as configurações de site e o template necessários para a criação do ambiente **mpas-bundle** na **EGEON**. A configuração para a máquina **JACI** está em desenvolvimento e será incorporada futuramente à mesma estrutura.
 
-# 🗂️ Índice
+## Sumário
 
-- [⚠️ Atenção](#atencao)
-- [🧹 Passo 0: Limpando o Cache](#passo0)
-- [📦 Passo 1: Clonando o Repositório do Spack-Stack](#passo1)
-- [⚙️ Passo 2: Configurando os Arquivos do Site](#passo2)
-- [🚀 Passo 3: Criando e Ativando o Ambiente](#passo3)
-- [📦 Passo 4: Concretizando e Instalando](#passo4)
-- [🧰 Utilização dos Módulos](#modulos)
-- [🧰 Possíveis Erros e Soluções](#erros)
-- [✅ Indicadores de Sucesso](#indicadores)
-- [🔎 Pontos de Observação](#observacao)
-- [🧪 Verificação Pós-Instalação](#verificacao)
-- [🧪 Testes](#testes)
-- [📜 Script Automatizado](#script)
-- [⚙️ Ativando o Ambiente](#ativando)
-- [👥 Ambiente Compartilhado para o Grupo](#compartilhado)
+- [Visão geral](#visao-geral)
+- [Objetivo](#objetivo)
+- [Escopo atual do repositório](#escopo-atual-do-repositorio)
+- [Estrutura do repositório](#estrutura-do-repositorio)
+- [Requisitos](#requisitos)
+- [Fluxo rápido](#fluxo-rapido)
+- [Instalação manual](#instalacao-manual)
+  - [1. Preparação do diretório de trabalho](#1-preparacao-do-diretorio-de-trabalho)
+  - [2. Limpeza de cache e configuração local](#2-limpeza-de-cache-e-configuracao-local)
+  - [3. Clone do spack-stack](#3-clone-do-spack-stack)
+  - [4. Clone deste repositório e cópia das configurações](#4-clone-deste-repositorio-e-copia-das-configuracoes)
+  - [5. Verificação do `compilers.yaml`](#5-verificacao-do-compilersyaml)
+  - [6. Criação e ativação do ambiente](#6-criacao-e-ativacao-do-ambiente)
+  - [7. Concretização, instalação e meta-módulos](#7-concretizacao-instalacao-e-meta-modulos)
+- [Uso dos módulos após a instalação](#uso-dos-modulos-apos-a-instalacao)
+- [Indicadores de sucesso](#indicadores-de-sucesso)
+- [Verificação pós-instalação](#verificacao-pos-instalacao)
+- [Testes funcionais](#testes-funcionais)
+  - [Teste NetCDF](#teste-netcdf)
+  - [Teste NetCDF-C++](#teste-netcdf-c)
+  - [Teste HDF5](#teste-hdf5)
+  - [Teste OpenMPI](#teste-openmpi)
+- [Script automatizado](#script-automatizado)
+- [Ativação do ambiente após a instalação](#ativacao-do-ambiente-apos-a-instalacao)
+- [Ambiente compartilhado para o grupo](#ambiente-compartilhado-para-o-grupo)
+- [Boas práticas de execução](#boas-praticas-de-execucao)
+- [Problemas comuns e soluções](#problemas-comuns-e-solucoes)
+- [Informações que ainda precisam ser complementadas](#informacoes-que-ainda-precisam-ser-complementadas)
+- [Licença](#licenca)
 
----
-<a name="atencao"></a>
-## ⚠️ Atenção
+<a name="visao-geral"></a>
+## Visão geral
 
-Certifique-se de estar no disco **beegfs**:
+O **spack-stack-inpe** concentra arquivos de configuração institucionais do INPE para uso com o **spack-stack**, permitindo adaptar a instalação padrão ao ambiente computacional local.
+
+No estado atual do projeto, o repositório contém a configuração da **EGEON** e o template de ambiente **mpas-bundle**. A configuração da **JACI** está em preparação e será integrada futuramente.
+
+<a name="objetivo"></a>
+## Objetivo
+
+Este repositório tem como objetivo:
+
+- padronizar a configuração do **spack-stack** no ambiente institucional do INPE;
+- reduzir erros recorrentes de instalação e concretização;
+- facilitar a criação e reutilização do ambiente **mpas-bundle**;
+- registrar um procedimento reprodutível de instalação, validação e ativação do ambiente;
+- servir de base para projetos científicos e técnicos que dependam desse ecossistema, como o **MPAS-JEDI**.
+
+
+
+<a name="escopo-atual-do-repositorio"></a>
+## Escopo atual do repositório
+
+No momento, o repositório contém:
+
+- configurações de site para a **EGEON**;
+- template de ambiente **mpas-bundle**;
+- documentação do processo manual de instalação;
+- referência ao fluxo automatizado de instalação e testes.
+
+### Observação importante
+
+- A documentação manual abaixo usa como referência o **spack-stack 1.7.0**.
+- O fluxo automatizado permite parametrizar a versão do **spack-stack** por meio da variável de ambiente `SPACK_VERSION`.
+- A configuração da **JACI** ainda não está incluída nesta versão do repositório.
+
+<a name="estrutura-do-repositorio"></a>
+## Estrutura do repositório
+
+A estrutura esperada deste repositório é:
+
+```text
+configs/
+├── sites/
+│   └── egeon/
+└── templates/
+    └── mpas-bundle/
+````
+
+### Descrição dos diretórios
+
+* `configs/sites/egeon/`: arquivos de configuração específicos da máquina EGEON;
+* `configs/templates/mpas-bundle/`: template do ambiente `mpas-bundle`.
+
+Quando a configuração da JACI estiver pronta, a estrutura do diretório `configs/sites/` deverá ser expandida de forma consistente.
+
+<a name="requisitos"></a>
+## Requisitos
+
+Antes de iniciar a instalação, confirme os seguintes requisitos:
+
+* acesso ao sistema de arquivos em `/mnt/beegfs/$USER`;
+* `git` disponível no ambiente;
+* sistema de módulos em funcionamento;
+* módulo `gnu9` disponível na EGEON;
+* acesso ao GitHub para clonagem dos repositórios;
+* permissões adequadas para criar diretórios e instalar pacotes no espaço de trabalho do usuário.
+
+<a name="fluxo-rapido"></a>
+## Fluxo rápido
+
+Para usuários experientes, o fluxo mínimo de instalação manual na **EGEON**, usando o **spack-stack 1.7.0**, é o seguinte:
+
+```bash
+cd /mnt/beegfs/$USER
+
+rm -rf ~/.cache/spack ~/.spack
+
+git clone https://github.com/JCSDA/spack-stack -b release/1.7.0 spack-stack_1.7.0 --recurse-submodules
+git clone https://github.com/GAD-DIMNT-CPTEC/spack-stack-inpe.git
+
+module load gnu9
+
+cd spack-stack_1.7.0
+source setup.sh
+
+cp -r ../spack-stack-inpe/configs/sites/egeon configs/sites/
+cp -r ../spack-stack-inpe/configs/templates/mpas-bundle configs/templates/
+
+spack stack create env --name=mpas-bundle --template=mpas-bundle --site=egeon
+cd envs/mpas-bundle
+spack env activate .
+
+spack concretize 2>&1 | tee log.concretize
+spack install 2>&1 | tee log.install
+spack stack setup-meta-modules 2>&1 | tee log.metamodules
+```
+
+Após a instalação, para utilizar os módulos gerados:
+
+```bash
+module use /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/Core
+module load stack-gcc/9.4.0
+```
+
+> **Importante:** este fluxo rápido refere-se ao procedimento manual atual com foco na **EGEON**. Para a instalação automatizada e para a seleção parametrizada da versão do Spack-Stack, utilize o script apropriado.
+
+<a name="instalacao-manual"></a>
+## Instalação manual
+
+O procedimento abaixo descreve a instalação manual do ambiente com base no **spack-stack 1.7.0**.
+
+<a name="1-preparacao-do-diretorio-de-trabalho"></a>
+### 1. Preparação do diretório de trabalho
+
+Recomenda-se executar todo o procedimento em `beegfs`:
 
 ```bash
 cd /mnt/beegfs/$USER
 ```
----
-<a name="passo0"></a>
-## 🧹 Passo 0: Limpando o Cache (Altamente Recomendado)
 
-Antes de iniciar qualquer etapa de instalação, **recomenda-se limpar o cache do Spack para evitar conflitos ou erros de configuração anteriores.**
+
+
+<a name="2-limpeza-de-cache-e-configuracao-local"></a>
+### 2. Limpeza de cache e configuração local
+
+Antes de iniciar, recomenda-se limpar caches e configurações locais anteriores do Spack:
 
 ```bash
 rm -rf ~/.cache/spack
 rm -rf ~/.spack
 ```
 
-> ⚠️ **Atenção:** Essa limpeza remove caches e configurações locais do Spack. Faça isso especialmente se:
-> - Você já tentou instalar o ambiente antes;
-> - Houve mudanças nos arquivos de configuração (`compilers.yaml`, `packages.yaml`);
-> - Está enfrentando erros inesperados durante `spack concretize` ou `spack install`.
+> **Atenção:** esse procedimento remove caches e configurações locais do Spack do usuário atual. Recomenda-se especialmente quando houve tentativas anteriores de instalação ou alterações nos arquivos de configuração.
 
----
+<a name="3-clone-do-spack-stack"></a>
+### 3. Clone do spack-stack
 
-<a name="passo1"></a>
-## 📦 Passo 1: Clonando o Repositório do Spack-Stack
-
-Comece clonando a versão correta do Spack-Stack com os submódulos:
+Clone a versão de referência do **spack-stack** com submódulos:
 
 ```bash
 git clone https://github.com/JCSDA/spack-stack -b release/1.7.0 spack-stack_1.7.0 --recurse-submodules
 ```
 
-Após o clone, carregue o módulo do GCC já existente na Egeon:
+Carregue o compilador disponível na EGEON:
 
 ```bash
 module load gnu9
 ```
 
-Em seguida, entre no diretório do Spack-Stack e execute o script de configuração inicial:
+Entre no diretório clonado e inicialize o ambiente:
 
 ```bash
 cd spack-stack_1.7.0
 source setup.sh
 ```
----
-<a name="passo2"></a>
-<a name="passo2"></a>
-## ⚙️ Passo 2: Configurando os Arquivos do Site
 
-As configurações do site **Egeon** e o template `mpas-bundle` estão agora disponíveis diretamente no repositório:
+<a name="4-clone-deste-repositorio-e-copia-das-configuracoes"></a>
+### 4. Clone deste repositório e cópia das configurações
 
-📁 [https://github.com/joaogerd/spack-egeon](https://github.com/joaogerd/spack-egeon)
-
-Clone o repositório:
+Clone este repositório:
 
 ```bash
-git clone https://github.com/joaogerd/spack-egeon.git
+git clone https://github.com/GAD-DIMNT-CPTEC/spack-stack-inpe.git
 ```
 
-Depois de clonado, os arquivos de configuração estarão no diretório `spack-egeon/configs`. Copie-os para a pasta correta do Spack-Stack que você clonou:
+Em seguida, copie os arquivos de configuração de site e o template para dentro da árvore do `spack-stack`:
 
 ```bash
-cp -r spack-egeon/configs/sites/egeon spack-stack_1.7.0/configs/sites/
-cp -r spack-egeon/configs/templates/mpas-bundle spack-stack_1.7.0/configs/templates/
+cp -r spack-stack-inpe/configs/sites/egeon spack-stack_1.7.0/configs/sites/
+cp -r spack-stack-inpe/configs/templates/mpas-bundle spack-stack_1.7.0/configs/templates/
 ```
 
-### 🔧 Verificação do `compilers.yaml`
+> **Importante:** atualmente este repositório disponibiliza apenas a configuração da **EGEON**.
 
-Abra o arquivo `configs/sites/egeon/compilers.yaml` e certifique-se de que o campo `flags` esteja presente dentro da definição do compilador, como no exemplo abaixo:
+
+
+<a name="5-verificacao-do-compilersyaml"></a>
+### 5. Verificação do `compilers.yaml`
+
+Abra o arquivo:
+
+```text
+spack-stack_1.7.0/configs/sites/egeon/compilers.yaml
+```
+
+Verifique se a chave `flags` está presente dentro da definição do compilador.
+
+Exemplo esperado:
 
 ```yaml
 compilers:
@@ -108,20 +238,14 @@ compilers:
       flags: {}
 ```
 
-> ⚠️ A ausência da chave `flags` pode causar falhas no comando `spack concretize`.
+A ausência de `flags: {}` pode causar falhas no comando `spack concretize`.
 
-Adicione o elemento `flags` no arquivo `compilers.yaml` localizado em `configs/sites/egeon`, caso ele não exista. Este passo é essencial para evitar erros na concretização do ambiente. Um exemplo de configuração seria:
 
-```yaml
-compilers:
-  - compiler:
-      flags: {}
-```
----
-<a name="passo3"></a>
-## 🚀 Passo 3: Criando e Ativando o Ambiente
 
-Com as configurações ajustadas, crie o ambiente do Spack-Stack para o MPAS-Bundle:
+<a name="6-criacao-e-ativacao-do-ambiente"></a>
+### 6. Criação e ativação do ambiente
+
+Crie o ambiente `mpas-bundle` com o template e o site configurados:
 
 ```bash
 spack stack create env --name=mpas-bundle --template=mpas-bundle --site=egeon
@@ -133,206 +257,104 @@ Ative o ambiente criado:
 ```bash
 spack env activate .
 ```
----
-<a name="passo4"></a>
-## 📦 Passo 4: Concretizando e Instalando
 
-Concretize o ambiente para resolver todas as dependências e registre as saídas em um log:
+
+
+<a name="7-concretizacao-instalacao-e-meta-modulos"></a>
+### 7. Concretização, instalação e meta-módulos
+
+Concretize o ambiente e registre a saída em log:
 
 ```bash
 spack concretize 2>&1 | tee log.concretize
 ```
 
-Em seguida, inicie a instalação e registre as saídas:
+Instale os pacotes:
 
 ```bash
 spack install 2>&1 | tee log.install
 ```
 
-Por fim, atualize a lista de módulos instalados:
+Gere os meta-módulos:
 
 ```bash
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 ```
----
-<a name="modulos"></a>
-## 🧰 Utilização dos Módulos
 
-Para utilizar os módulos compilados com o spack-stack na Egeon, execute os seguintes comandos:
+
+
+<a name="uso-dos-modulos-apos-a-instalacao"></a>
+## Uso dos módulos após a instalação
+
+Para utilizar os módulos compilados:
 
 ```bash
 module use /mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/Core
 module load stack-gcc/9.4.0
 ```
 
-Para listar novos módulos recém compilados, utilize o comando:
+Para listar os módulos disponíveis:
 
 ```bash
 module avail
 ```
 
-Procure pelos módulos que estiverem listados na seção:
-
-```bash
-/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/gcc/9.4.0
-   boost/1.84.0                       (D)    jedi-cmake/1.4.0             python/3.10.13
-   c-blosc/1.21.5                            libbsd/0.11.7                qhull/2020.2
-   ca-certificates-mozilla/2023-05-30        libmd/1.0.4                  snappy/1.1.10
-   cmake/3.23.1                       (D)    libxcrypt/4.4.35             sqlite/3.43.2
-   curl/8.4.0                                nghttp2/1.57.0               stack-openmpi/4.1.1
-   ecbuild/3.7.2                             openblas/0.3.24       (D)    stack-python/3.10.13
-   eigen/3.4.0                               openmpi/4.1.1                tar/1.34
-   gcc-runtime/9.4.0                         py-pip/23.1.2                udunits/2.2.28
-   gettext/0.21.1                            py-pycodestyle/2.11.0        util-linux-uuid/2.38.1
-   gmake/4.3                                 py-setuptools/63.4.3         zlib-ng/2.1.5
-   gsl-lite/0.37.0                           py-wheel/0.41.2              zstd/1.5.2
-
-```
-
-Outros módulos ficarão disponíveis apenas quando o módulo `openmpi/4.1.1` for carregado:
+Alguns módulos adicionais ficam disponíveis apenas após carregar o OpenMPI:
 
 ```bash
 module load openmpi/4.1.1
 ```
 
-Procure pelos novos módulos na seção:
+
+
+<a name="indicadores-de-sucesso"></a>
+## Indicadores de sucesso
+
+Os principais sinais de que a instalação ocorreu corretamente são:
+
+1. Mensagens de sucesso nos logs, por exemplo:
+
+   ```text
+   Successfully installed <package-name>
+   ```
+
+2. Criação do diretório de módulos no ambiente instalado.
+
+3. Geração dos arquivos de log:
+
+   * `log.concretize`
+   * `log.install`
+   * `log.metamodules`
+
+4. Reconhecimento adequado de dependências externas e módulos carregados.
+
+
+
+<a name="verificacao-pos-instalacao"></a>
+## Verificação pós-instalação
+
+Após a instalação, recomenda-se executar:
 
 ```bash
-/mnt/beegfs/$USER/spack-stack_1.7.0/envs/mpas-bundle/install/modulefiles/openmpi/4.1.1-kvlvrl3/gcc/9.4.0
-   atlas/0.36.0     fftw/3.3.10 (D)    nccmp/1.9.0.1               parallel-netcdf/1.12.3
-   eckit/1.24.5     fiat/1.2.0         netcdf-c/4.9.2              parallelio/2.6.2
-   ectrans/1.2.0    gptl/8.1.1         netcdf-cxx4/4.3.1
-   fckit/0.11.0     hdf5/1.14.3 (D)    netcdf-fortran/4.6.1 (D)
-```
----
-<a name="erros"></a>
-## 🧰 Possíveis Erros e Soluções
-
-<details>
-<summary>Erro: "flags" ausente no `compilers.yaml` </summary>
-  
-🔎 **Descrição:** Durante a execução do comando `spack concretize`, pode surgir um erro relacionado ao elemento `flags`.
-
-✅ **Solução:** Adicione `flags: {}` no bloco do compilador.
-
-</details>
-
-<details>
-<summary>Problemas com OpenMPI e SLURM</summary>
-
-🔎 **Descrição:** A integração entre o OpenMPI e o SLURM da Egeon pode causar falhas se você não usar os compiladores e MPI nativos.
-
-✅ **Solução:** Use os módulos nativos carregados com `module load`.
-
-</details>
-
-<details>
-<summary>Erro no `setup-meta-modules`</summary>
-  
-🔎 **Descrição:** Mesmo após a instalação, este comando pode falhar devido a uma configuração incorreta dos módulos Lmod.
-
-✅ **Solução:** Revise os arquivos de configuração do site e certifique-se de que o ambiente foi ativado corretamente antes de rodar o comando.
-
-</details>
-
-<details>
-<summary>Instalação de GCC e Lmod pelo Spack</summary>
-
-🔎 **Descrição:** Dependendo do ambiente, pode ser necessário instalar ferramentas específicas, como GCC e Lmod.
-
-✅ **Comandos sugeridos:**
-```bash
-spack add gcc@8.5.0
-spack install gcc@8.5.0
-spack load gcc@8.5.0
-spack compiler add
-spack add lmod@8.7.24
-spack install lmod@8.7.24
+spack env activate .
+spack find
+ls -1 log.concretize log.install log.metamodules
 ```
 
-</details>
+Se necessário, consulte logs adicionais do Spack em:
 
----
+```text
+<spack-stack-dir>/cache/log/
+```
 
 
-## 🧰 Conferência Final
 
-Depois de completar todos os passos, use o ambiente configurado para compilar os módulos necessários para o MPAS-JEDI ou outros pacotes. Caso surjam dúvidas adicionais, considere entrar em contato para revisar as configurações.
+<a name="testes-funcionais"></a>
+## Testes funcionais
 
-É possível verificar a partir dos logs se o processo de instalação do ambiente **Spack-Stack 1.7.0** ocorreu conforme esperado. Aqui estão alguns pontos importantes para verificar:
+Os testes abaixo ajudam a validar bibliotecas críticas do ambiente.
 
----
-<a name="indicadores"></a>
-## ✅ Indicadores de Sucesso
-
-1. **Pacotes instalados com sucesso**:
-   - Cada pacote está finalizando com a mensagem:
-     ```
-     Successfully installed <package-name>
-     ```
-   - O tempo total de instalação de cada pacote está registrado, o que indica que os processos foram concluídos.
-
-2. **Diretórios de instalação**:
-   - Os pacotes estão sendo instalados no diretório esperado:
-     ```
-     <spack-stack-dir>/envs/mpas-bundle/install/gcc/9.4.0/<package-name>
-     ```
-   - Isso confirma que o prefixo do ambiente está configurado corretamente.
-
-3. **Dependências Externas Reconhecidas**:
-   - Dependências como `gmake`, `pkgconf`, e `openmpi` são reconhecidas como módulos externos, reduzindo a necessidade de compilar novamente.
----
-<a name="observacao"></a>
-## 🔎 Pontos de Observação
-
-1. **Ausência de binários**:
-   - Muitos pacotes foram compilados a partir do código-fonte devido à ausência de binários pré-compilados:
-     ```
-     No binary for <package-name> found: installing from source
-     ```
-   - Isso não é um problema, mas pode aumentar o tempo de instalação.
-
-2. **Pacotes com etapas complexas**:
-   - Alguns pacotes como `boost`, `cmake` e `python` levaram mais tempo para construir. Certifique-se de que esses pacotes funcionem corretamente ao executar comandos básicos relacionados (por exemplo, `python --version`, `cmake --version`).
-
-3. **Instalação do Atlas ECMWF**:
-   - O último pacote no log, `ecmwf-atlas`, também foi instalado com sucesso:
-     ```
-     Successfully installed ecmwf-atlas-0.36.0
-     ```
----
-<a name="verificacao"></a>
-## 🧪 Verificação Pós-Instalação
-
-Para garantir que tudo está correto:
-
-1. **Verifique o ambiente do Spack**:
-   - Ative o ambiente:
-     ```bash
-     spack env activate mpas-bundle
-     ```
-   - Certifique-se de que os pacotes instalados aparecem no ambiente:
-     ```bash
-     spack find
-     ```
-
-2. **Teste pacotes críticos**:
-   - Execute testes simples com bibliotecas essenciais, como `netcdf`, `hdf5` e `openmpi`.
-
-3. **Log de erros**:
-   - Não há evidência de falhas nos logs. Contudo, você pode verificar mensagens de erro completas em:
-     ```
-     <spack-stack-dir>/cache/log/
-     ```
----
-<a name="testes"></a>
-## 🧪 Testes
-
-Aqui estão sugestões de testes simples para verificar o funcionamento básico das bibliotecas **NetCDF**, **HDF5** e **OpenMPI** após a instalação.
-
-Para garantir que os executáveis consigam localizar corretamente as bibliotecas **NetCDF** e **HDF5** durante os testes, é necessário atualizar a variável `LD_LIBRARY_PATH` com os caminhos instalados pelo Spack. Isso ocorre porque alguns módulos Lmod gerados automaticamente pelo Spack podem não configurar o `LD_LIBRARY_PATH` de forma completa, o que pode resultar em falhas na compilação ou na execução de binários que dependem dessas bibliotecas dinâmicas
-
-Execute os comandos abaixo **após ativar o ambiente `mpas-bundle`**:
+Antes dos testes, exporte os caminhos das bibliotecas principais:
 
 ```bash
 export NETCDF_DIR=$(spack location -i netcdf-c)
@@ -352,385 +374,341 @@ if [ -d "$HDF5_DIR" ]; then
 fi
 ```
 
-**Nota:** Caso o comando `export NETCDF_CXX_DIR=$(spack location -i netcdf-cxx4)` falhe, execute o comando `spack install --add netcdf-cxx` e em seguida `spack stack setup-meta-modules 2>&1 | tee log.metamodules` e tente novamente.
 
-Esses comandos garantem que os binários consigam encontrar as bibliotecas dinâmicas `libnetcdf.so` e `libhdf5.so`, evitando erros como:
+
+<a name="teste-netcdf"></a>
+### Teste NetCDF
+
+Crie o arquivo de teste:
+
+```bash
+cat <<EOF > test_netcdf.c
+#include <netcdf.h>
+#include <stdio.h>
+
+int main() {
+    int ncid, retval;
+    const char *filename = "test.nc";
+
+    if ((retval = nc_create(filename, NC_CLOBBER, &ncid)))
+        return retval;
+
+    if ((retval = nc_close(ncid)))
+        return retval;
+
+    if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
+        return retval;
+
+    printf("NetCDF test passed. File '%s' created and opened successfully.\n", filename);
+    return 0;
+}
+EOF
+```
+
+Compile e execute:
+
+```bash
+gcc test_netcdf.c -o test_netcdf -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdf
+./test_netcdf
+```
+
+Saída esperada:
 
 ```text
-error while loading shared libraries: libhdf5.so.310: cannot open shared object file: No such file or directory
-```
-<details>
-  
-<summary>🔬 Teste NetCDF</summary>
-
-1. **Crie um arquivo NetCDF e leia-o**:
-
-   ```bash
-   cat <<EOF > test_netcdf.c
-   #include <netcdf.h>
-   #include <stdio.h>
-
-   int main() {
-       int ncid, retval;
-       const char *filename = "test.nc";
-
-       // Cria um arquivo NetCDF
-       if ((retval = nc_create(filename, NC_CLOBBER, &ncid)))
-           return retval;
-
-       // Fecha o arquivo
-       if ((retval = nc_close(ncid)))
-           return retval;
-
-       // Abre o arquivo
-       if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
-           return retval;
-
-       printf("NetCDF test passed. File '%s' created and opened successfully.\n", filename);
-       return 0;
-   }
-   EOF
-   ```
-
-2. **Carregue o módulo stack-openmpi**:
-
-  ```bash
-  module load stack-openmpi/4.1.1
-  ```
-3. **Carregue o modulo netcdf-c/4.9.2**
-   ```bash
-   module load netcdf-c/4.9.2
-   ```
-4. **Exporte as variáveis de ambiente**
-   ```bash
-    export NETCDF_LIB=$(spack location -i netcdf-c)/lib
-    export NETCDF_INC=$(spack location -i netcdf-c)/include
-    export LD_LIBRARY_PATH="$NETCDF_LIB:$LD_LIBRARY_PATH"
-   ```
-5. **Compile o código**:
-
-   ```bash
-   gcc test_netcdf.c -o test_netcdf -I$NETCDF_INC -L$NETCDF_LIB -lnetcdf
-   ```
-
-4. **Execute o programa**:
-
-   ```bash
-   ./test_netcdf
-   ```
-
-5. **Saída esperada**:
-   ```plaintext
-   NetCDF test passed. File 'test.nc' created and opened successfully.
-   ```
-</details>
-
-<details>
-<summary>🔬 Teste NetCDF-C++</summary>
-
-1. **Crie um programa usando a API C++ do NetCDF**:
-
-   ```bash
-   cat <<EOF > test_netcdf_cxx.cpp
-   #include <netcdf>
-   #include <iostream>
-
-   int main() {
-       try {
-           std::string filename = "test_cxx.nc";
-           netCDF::NcFile dataFile(filename, netCDF::NcFile::replace);
-           std::cout << "NetCDF-C++ test passed. File '" << filename << "' created successfully." << std::endl;
-       } catch (netCDF::exceptions::NcException& e) {
-           std::cerr << "NetCDF-C++ test failed: " << e.what() << std::endl;
-           return 1;
-       }
-       return 0;
-   }
-   EOF
-   ```
-
-2. **Carregue o módulo do NetCDF-C++**:
-
-   ```bash
-   module load netcdf-c/4.9.2
-   module load netcdf-cxx/4.3.1
-   ```
-
-3. **Exporte os caminhos das bibliotecas e includes**:
-
-   ```bash
-   export NETCDF_CXX4_DIR=$(spack location -i netcdf-cxx4)
-   export NETCDF_C_DIR=$(spack location -i netcdf-c)
-   
-   export NETCDF_CXX4_INC=$NETCDF_CXX4_DIR/include
-   export NETCDF_CXX4_LIB=$NETCDF_CXX4_DIR/lib
-   
-   export NETCDF_C_INC=$NETCDF_C_DIR/include
-   export NETCDF_C_LIB=$NETCDF_C_DIR/lib
-   ```
-
-4. **Compile o código**:
-
-   ```bash
-   g++ test_netcdf_cxx.cpp -o test_netcdf_cxx -I$NETCDF_CXX4_INC -I$NETCDF_C_INC -L$NETCDF_CXX4_LIB -L$NETCDF_C_LIB -lnetcdf_c++4 -lnetcdf
-   ```
-
-5. **Execute o programa**:
-
-   ```bash
-   ./test_netcdf_cxx
-   ```
-
-6. **Saída esperada**:
-   ```plaintext
-   NetCDF-C++ test passed. File 'test_cxx.nc' created successfully.
-   ```
-</details>
-
-<details>
-<summary>🔬 Teste HDF5</summary>
-
-1. **Crie um programa para escrever e ler um arquivo HDF5**:
-
-   ```bash
-   cat <<EOF > test_hdf5.c
-   #include "hdf5.h"
-   #include <stdio.h>
-
-   int main() {
-       hid_t file_id;
-       herr_t status;
-
-       // Cria um arquivo HDF5
-       file_id = H5Fcreate("test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-       if (file_id < 0) {
-           printf("Error creating HDF5 file.\n");
-           return 1;
-       }
-
-       // Fecha o arquivo
-       status = H5Fclose(file_id);
-       if (status < 0) {
-           printf("Error closing HDF5 file.\n");
-           return 1;
-       }
-
-       printf("HDF5 test passed. File 'test.h5' created successfully.\n");
-       return 0;
-   }
-   EOF
-   ```
-
-2. **Carregue o módulo hdf**:
-
-  ```bash
-  module load hdf5/1.14.3
-  ```
-3. **Exporte as variáveis de ambiente**
-   ```bash
-    export HDF5_LIB=$(spack location -i hdf5)/lib
-    export HDF5_INC=$(spack location -i hdf5)/include
-    export LD_LIBRARY_PATH="$HDF5_LIB:$LD_LIBRARY_PATH"
-   ```
-4. **Compile o código**:
-
-   ```bash
-   gcc test_hdf5.c -o test_hdf5 -I$HDF5_INC -L$HDF5_LIB -lhdf5
-   ```
-
-4. **Execute o programa**:
-
-   ```bash
-   ./test_hdf5
-   ```
-
-5. **Saída esperada**:
-   ```plaintext
-   HDF5 test passed. File 'test.h5' created successfully.
-   ```
-</details>
-
-<details>
-<summary>🔬 Teste OpenMPI</summary>
-
-1. **Crie um programa MPI simples**:
-
-   ```bash
-   cat <<EOF > test_mpi.c
-   #include <mpi.h>
-   #include <stdio.h>
-
-   int main(int argc, char *argv[]) {
-       MPI_Init(&argc, &argv);
-
-       int rank, size;
-       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-       MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-       printf("Hello from rank %d of %d.\n", rank, size);
-
-       MPI_Finalize();
-       return 0;
-   }
-   EOF
-   ```
-
-2. **Compile o código**:
-
-   ```bash
-   mpicc test_mpi.c -o test_mpi
-   ```
-
-3. **Execute o programa em 4 processos**:
-
-   ```bash
-   mpirun -np 4 ./test_mpi
-   ```
-
-4. **Saída esperada**:
-   ```plaintext
-   Hello from rank 0 of 4.
-   Hello from rank 1 of 4.
-   Hello from rank 2 of 4.
-   Hello from rank 3 of 4.
-   ```
-</details>
-
----
-
-## 📦 Validando Arquivos Gerados
-
-- Verifique se os arquivos `test.nc` e `test.h5` foram criados.
-- Use ferramentas como `ncdump` para NetCDF e `h5dump` para HDF5:
-
-  ```bash
-  ncdump test.nc
-  h5dump test.h5
-  ```
-
-Se todos os testes passarem, as bibliotecas estão instaladas e funcionando corretamente. Caso encontre erros, compartilhe as mensagens para ajudarmos na depuração!
-
----
-
-<a name="script"></a>
-## 📜 Uso do Script Automatizado
-
-Para facilitar todo o processo de **instalação e verificação do Spack-Stack 1.7.0 na Egeon**, você pode utilizar um **script shell completo**, que realiza todas as etapas descritas nesta wiki, incluindo testes de verificação com as bibliotecas **NetCDF**, **HDF5** e **OpenMPI**.
-
-### 📥 1. Baixe o script
-
-Clone o repositório com o script já pronto:
-
-```bash
-git clone https://github.com/joaogerd/spack-egeon.git
-cd spack-egeon
-```
-
-O script estará disponível no arquivo:
-
-```bash
-install_and_test_spack_stack.sh
-```
-
-### 🔐 2. Dê permissão de execução
-
-```bash
-chmod +x install_and_test_spack_stack.sh
-```
-
-### 🚀 3. Execute o script
-
-```bash
-./install_and_test_spack_stack.sh
-```
-
-### 📌 O que o script faz?
-
-- Clona o repositório do Spack-Stack 1.7.0 com submódulos.
-- Carrega o módulo `gnu9` disponível na Egeon.
-- Inicializa o ambiente do Spack.
-- Copia os arquivos de configuração do site `egeon`.
-- Cria e ativa o ambiente `mpas-bundle`.
-- Concretiza e instala todos os pacotes.
-- Gera os meta-módulos.
-- Carrega os módulos essenciais.
-- Realiza testes automatizados com:
-  - **NetCDF**: criação e leitura de um arquivo `.nc`.
-  - **HDF5**: criação e leitura de um arquivo `.h5`.
-  - **OpenMPI**: execução paralela com 4 processos MPI.
-- Exibe mensagens de sucesso e validação de arquivos com `ncdump` e `h5dump`.
-- Gera um script auxiliar para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**.
-
-### ✅ Resultado Esperado
-
-Ao final do script, você verá mensagens como:
-
-```plaintext
 NetCDF test passed. File 'test.nc' created and opened successfully.
+```
+
+
+
+<a name="teste-netcdf-c"></a>
+### Teste NetCDF-C++
+
+Crie o arquivo de teste:
+
+```bash
+cat <<EOF > test_netcdf_cxx.cpp
+#include <netcdf>
+#include <iostream>
+
+int main() {
+    try {
+        std::string filename = "test_cxx.nc";
+        netCDF::NcFile dataFile(filename, netCDF::NcFile::replace);
+        std::cout << "NetCDF-C++ test passed. File '" << filename << "' created successfully." << std::endl;
+    } catch (netCDF::exceptions::NcException& e) {
+        std::cerr << "NetCDF-C++ test failed: " << e.what() << std::endl;
+        return 1;
+    }
+    return 0;
+}
+EOF
+```
+
+Compile e execute:
+
+```bash
+g++ test_netcdf_cxx.cpp -o test_netcdf_cxx \
+    -I$NETCDF_CXX_DIR/include -L$NETCDF_CXX_DIR/lib \
+    -I$NETCDF_DIR/include -L$NETCDF_DIR/lib \
+    -lnetcdf_c++4
+./test_netcdf_cxx
+```
+
+Saída esperada:
+
+```text
+NetCDF-C++ test passed. File 'test_cxx.nc' created successfully.
+```
+
+
+
+<a name="teste-hdf5"></a>
+### Teste HDF5
+
+Crie o arquivo de teste:
+
+```bash
+cat <<EOF > test_hdf5.c
+#include "hdf5.h"
+#include <stdio.h>
+
+int main() {
+    hid_t file_id;
+    herr_t status;
+
+    file_id = H5Fcreate("test.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    if (file_id < 0) {
+        printf("Error creating HDF5 file.\n");
+        return 1;
+    }
+
+    status = H5Fclose(file_id);
+    if (status < 0) {
+        printf("Error closing HDF5 file.\n");
+        return 1;
+    }
+
+    printf("HDF5 test passed. File 'test.h5' created successfully.\n");
+    return 0;
+}
+EOF
+```
+
+Compile e execute:
+
+```bash
+gcc test_hdf5.c -o test_hdf5 -I$HDF5_DIR/include -L$HDF5_DIR/lib -lhdf5
+./test_hdf5
+```
+
+Saída esperada:
+
+```text
 HDF5 test passed. File 'test.h5' created successfully.
+```
+
+
+
+<a name="teste-openmpi"></a>
+### Teste OpenMPI
+
+Crie o arquivo de teste:
+
+```bash
+cat <<EOF > test_mpi.c
+#include <mpi.h>
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+    MPI_Init(&argc, &argv);
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    printf("Hello from rank %d of %d.\n", rank, size);
+
+    MPI_Finalize();
+    return 0;
+}
+EOF
+```
+
+Compile e execute:
+
+```bash
+mpicc test_mpi.c -o test_mpi
+mpirun -np 4 ./test_mpi
+```
+
+Saída esperada:
+
+```text
 Hello from rank 0 of 4.
 Hello from rank 1 of 4.
 Hello from rank 2 of 4.
 Hello from rank 3 of 4.
 ```
 
-Se todos os testes forem bem-sucedidos, o ambiente está pronto para uso com **MPAS-JEDI** ou outros projetos científicos.
 
-<a name="ativando"></a>
-## ⚙️ Ativando o Ambiente após a Instalação
 
-Após a execução bem-sucedida do script `install_and_test_spack_stack.sh`, um script auxiliar chamado `start_spack_bundle.sh` será gerado automaticamente no diretório pessoal do usuário.
+<a name="script-automatizado"></a>
+## Script automatizado
 
-O script `start_spack_bundle.sh` serve para **ativar corretamente o ambiente Spack-Stack e os módulos compilados**, ou seja, ele garante que todo o ambiente esteja funcional e contorna limitações conhecidas dos módulos gerados pelo Spack, como a ausência de exportações automáticas de variáveis essenciais como `LD_LIBRARY_PATH`. Ele foi projetado justamente para lidar com esse tipo de situação, assegurando que bibliotecas como **NetCDF** e **HDF5** possam ser utilizadas corretamente em compilações e execuções. 
+O fluxo automatizado executa, de forma encadeada, as etapas de:
 
-### 📌 Para ativar o ambiente, execute:
+* limpeza de cache e variáveis de ambiente;
+* clone do `spack-stack`;
+* cópia das configurações de site e template;
+* criação e ativação do ambiente;
+* concretização e instalação;
+* geração de meta-módulos;
+* configuração do ambiente para testes;
+* testes de NetCDF, NetCDF-C++, HDF5 e OpenMPI;
+* geração de um script auxiliar de ativação.
+
+### Observações importantes sobre a automação
+
+1. O passo a passo manual deste README usa como exemplo o **spack-stack 1.7.0**.
+2. No fluxo automatizado, a versão do Spack-Stack pode ser parametrizada por `SPACK_VERSION`.
+3. O script atual ainda contém referências legadas ao nome `spack-egeon`; essa nomenclatura deverá ser atualizada para refletir o nome oficial **spack-stack-inpe**.
+
+### Exemplo conceitual de uso
+
+Quando o script estiver ajustado para o nome definitivo do repositório, a ideia é permitir algo como:
 
 ```bash
-source $HOME/.spack/$ENV_NAME/start_spack_bundle.sh
+export SPACK_VERSION=1.7.0
+./install_and_test_spack_stack.sh
 ```
 
-Este comando irá:
+ou equivalente ao mecanismo de parametrização adotado na versão final do script.
 
-- Ativar o ambiente `mpas-bundle`
-- Inclusão do diretório correto de módulos
-- Carregar os módulos necessários (`stack-gcc`, `stack-openmpi`, `stack-python`, etc.)
-- Exportar corretamente o `LD_LIBRARY_PATH` com as bibliotecas necessárias
 
-> ⚠️ **Importante**: Este passo deve ser feito **sempre que for utilizar** o ambiente instalado. Sem isso, bibliotecas compartilhadas como `libnetcdf.so` podem não ser encontradas.
 
----
+<a name="ativacao-do-ambiente-apos-a-instalacao"></a>
+## Ativação do ambiente após a instalação
 
-<a name="compartilhado"></a>
-## 👥 Ambiente Compartilhado para o Grupo
+Ao final da automação, pode ser gerado um script auxiliar chamado `start_spack_bundle.sh`, utilizado para ativar corretamente o ambiente instalado.
 
-Para evitar múltiplas instalações duplicadas do ambiente `mpas-bundle` para cada usuário do grupo de assimilação de dados, recomendamos utilizar um **ambiente compartilhado** já instalado e configurado em um diretório comum, como por exemplo:
+Exemplo de ativação:
+
+```bash
+source $HOME/.spack/mpas-bundle/start_spack_bundle.sh
+```
+
+Esse script deve ser usado para:
+
+* ativar o ambiente `mpas-bundle`;
+* adicionar o caminho correto de módulos;
+* carregar módulos essenciais;
+* complementar variáveis de ambiente necessárias, como `LD_LIBRARY_PATH`.
+
+> **Importante:** esse passo deve ser executado sempre que o ambiente instalado for utilizado em uma nova sessão.
+
+
+
+<a name="ambiente-compartilhado-para-o-grupo"></a>
+## Ambiente compartilhado para o grupo
+
+Para evitar instalações duplicadas por usuário, recomenda-se utilizar um ambiente compartilhado já instalado em diretório comum, por exemplo:
 
 ```bash
 /mnt/beegfs/das.group/spack-stack_1.7.0/envs/mpas-bundle/
 ```
 
-Um script de ativação para uso coletivo está disponível nesse ambiente compartilhado:
-
-```bash
-/mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
-```
-
-### ✅ Para usar o ambiente compartilhado:
-
-Basta executar:
+Se houver um script de ativação compartilhado, o uso esperado é:
 
 ```bash
 source /mnt/beegfs/das.group/spack-envs/mpas-bundle/start_spack_bundle.sh
 ```
 
-Esse script realiza:
+Benefícios dessa abordagem:
 
-- Ativação do ambiente Spack já configurado
-- Inclusão do diretório de módulos
-- Carregamento de todos os pacotes essenciais e dependências
-- Exportação correta de `LD_LIBRARY_PATH`
+* uniformidade entre usuários;
+* redução de consumo de disco;
+* menor risco de divergência entre ambientes;
+* maior facilidade para uso colaborativo.
 
-> 🧠 **Importante:** Esse processo garante uniformidade entre os membros do grupo, reduz consumo de disco e evita divergências de ambiente entre usuários. Ideal para testes e execuções colaborativas.
 
+
+<a name="boas-praticas-de-execucao"></a>
+## Boas práticas de execução
+
+* execute a instalação em um diretório estável no `beegfs`;
+* registre a saída dos comandos principais em arquivos de log;
+* revise `compilers.yaml` antes da concretização;
+* valide o ambiente com testes mínimos antes de iniciar compilações maiores;
+* use um ambiente compartilhado quando a equipe precisar trabalhar com a mesma pilha de software;
+* mantenha documentadas a versão do `spack-stack`, o compilador utilizado e o conjunto de módulos carregados.
+
+
+
+<a name="problemas-comuns-e-solucoes"></a>
+## Problemas comuns e soluções
+
+### 1. Erro relacionado a `flags` ausente no `compilers.yaml`
+
+**Descrição:** o `spack concretize` pode falhar se a chave `flags` estiver ausente.
+
+**Solução:** adicione:
+
+```yaml
+flags: {}
+```
+
+
+
+### 2. Falha no `spack stack setup-meta-modules`
+
+**Descrição:** pode ocorrer por ativação incorreta do ambiente ou configuração inconsistente do sistema de módulos.
+
+**Solução:** confirme:
+
+* se o ambiente foi ativado corretamente;
+* se os arquivos do site foram copiados para os diretórios esperados;
+* se o `MODULEPATH` está coerente com a instalação realizada.
+
+
+
+### 3. Bibliotecas dinâmicas não encontradas em tempo de execução
+
+**Descrição:** binários de teste podem falhar com mensagens relacionadas a `libnetcdf.so` ou `libhdf5.so`.
+
+**Solução:** complemente `LD_LIBRARY_PATH` com os caminhos retornados por:
+
+```bash
+spack location -i netcdf-c
+spack location -i netcdf-cxx4
+spack location -i hdf5
+```
+
+
+
+### 4. Problemas com OpenMPI e ambiente local
+
+**Descrição:** algumas combinações entre MPI, módulos locais e ambiente do usuário podem causar comportamento inconsistente.
+
+**Solução:** priorize os módulos previstos no ambiente instalado e valide o teste MPI antes de seguir para compilações maiores.
+
+
+
+<a name="informacoes-que-ainda-precisam-ser-complementadas"></a>
+## Informações que ainda precisam ser complementadas
+
+Os itens abaixo ainda devem ser confirmados ou ajustados no repositório:
+
+1. caminho e versão final do script automatizado após a renomeação definitiva para `spack-stack-inpe`;
+2. inclusão futura da configuração da **JACI**;
+3. definição formal da licença do projeto;
+4. confirmação do local definitivo do ambiente compartilhado e do script de ativação compartilhado;
+5. sincronização completa entre o README e a versão final do script automatizado.
+
+
+
+<a name="licenca"></a>
+## Licença
+
+**Informação ainda não definida neste README.**
 
 
