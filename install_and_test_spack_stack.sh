@@ -11,7 +11,7 @@ start=$(date +%s)
 export SPACK_VERSION="${1:-1.7.0}"
 export ENV_NAME="mpas-bundle"
 export SPACK_DIR="/mnt/beegfs/$USER/spack-stack_$SPACK_VERSION"
-export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-egeon"
+export EGEON_CONFIG_REPO="/mnt/beegfs/$USER/spack-stack-inpe"
 export MODULE_CORE_PATH="$SPACK_DIR/envs/$ENV_NAME/install/modulefiles/Core"
 export SPACK_ENV_DIR="$HOME/.spack/$ENV_NAME"
 
@@ -36,8 +36,8 @@ echo "[INFO] Preparando diretório de trabalho em /mnt/beegfs/$USER"
 cd /mnt/beegfs/$USER
 
 if [ ! -d "$EGEON_CONFIG_REPO" ]; then
-    echo "[INFO] Clonando repositório de configuração spack-egeon..."
-    git clone https://github.com/joaogerd/spack-egeon.git
+    echo "[INFO] Clonando repositório de configuração spack-stack-inpe..."
+    git clone https://github.com/joaogerd/spack-stack-inpe.git
 fi
 
 if [ ! -d "$SPACK_DIR" ]; then
