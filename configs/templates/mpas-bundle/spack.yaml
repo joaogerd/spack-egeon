@@ -1,5 +1,4 @@
-# spack-stack hash: 6040a25
-# spack hash: e5274e9c2d
+# cleaned site-oriented environment for MPAS-BUNDLE builds on EGEON
 spack:
   concretizer:
     unify: when_possible
@@ -10,6 +9,9 @@ spack:
   definitions:
   - compilers: ['%gcc@9.4.0']
   - packages:
+    - openmpi
+    - python
+    - esmf
     - ecmwf-atlas
     - ecbuild
     - eckit
@@ -25,7 +27,6 @@ spack:
     - udunits
     - nccmp
     - py-pycodestyle
-
   specs:
   - matrix:
     - [$packages]

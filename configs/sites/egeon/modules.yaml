@@ -1,8 +1,4 @@
 modules:
   default:
-    enable::
+    enable:
     - lmod
-    lmod:
-      include:
-      - openmpi 
-      - python
