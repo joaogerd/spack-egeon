@@ -13,6 +13,7 @@ Atualmente, este repositório disponibiliza as configurações de site e o templ
 - [Requisitos](#requisitos)
 - [Fluxo rápido](#fluxo-rapido)
 - [Instalação manual](#instalacao-manual)
+  - [0. Pré-requisitos](#0-pre-requisitos)
   - [1. Preparação do diretório de trabalho](#1-preparacao-do-diretorio-de-trabalho)
   - [2. Limpeza de cache e configuração local](#2-limpeza-de-cache-e-configuracao-local)
   - [3. Clone do spack-stack](#3-clone-do-spack-stack)
@@ -126,11 +127,13 @@ cp -r ../spack-stack-inpe/configs/sites/egeon configs/sites/
 cp -r ../spack-stack-inpe/configs/templates/mpas-bundle configs/templates/
 
 spack stack create env --name=mpas-bundle --template=mpas-bundle --site=egeon
+
 cd envs/mpas-bundle
 spack env activate .
 
 spack concretize 2>&1 | tee log.concretize
-spack install 2>&1 | tee log.install
+spack install --source 2>&1 | tee log.install
+spack module lmod refresh -y 2>&1 | tee log.modules
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 ```
 
@@ -148,6 +151,17 @@ module load stack-gcc/9.4.0
 
 O procedimento abaixo descreve a instalação manual do ambiente com base no **spack-stack 1.7.0**.
 
+<a name="0-pre-requisitos"></a>
+### 0. Pré-requisitos
+
+Antes de iniciar, certifique-se de que:
+
+- o comando `module` está disponível no sistema;
+- o compilador/base esperada para o site `egeon` pode ser carregada com `module load gnu9`;
+- o `git` está disponível;
+- há acesso ao filesystem compartilhado em `/mnt/beegfs/$USER`;
+- o repositório institucional `spack-stack-inpe` está acessível.
+- 
 <a name="1-preparacao-do-diretorio-de-trabalho"></a>
 ### 1. Preparação do diretório de trabalho
 
@@ -258,8 +272,6 @@ Ative o ambiente criado:
 spack env activate .
 ```
 
-
-
 <a name="7-concretizacao-instalacao-e-meta-modulos"></a>
 ### 7. Concretização, instalação e meta-módulos
 
@@ -272,15 +284,23 @@ spack concretize 2>&1 | tee log.concretize
 Instale os pacotes:
 
 ```bash
-spack install 2>&1 | tee log.install
+spack install  --source 2>&1 | tee log.install
 ```
+> A opção `--source` também preserva os códigos-fonte instalados, o que pode ser útil para rastreabilidade e depuração.
+
+Gere ou atualize os módulos Lmod do ambiente:
+
+```bash
+spack module lmod refresh -y 2>&1 | tee log.modules
+```
+> Esse passo atualiza os módulos Lmod correspondentes aos pacotes instalados no ambiente.
 
 Gere os meta-módulos:
 
 ```bash
 spack stack setup-meta-modules 2>&1 | tee log.metamodules
 ```
-
+> Os meta-módulos facilitam o carregamento posterior do ambiente, organizando de forma mais simples o uso dos módulos gerados.
 
 
 <a name="uso-dos-modulos-apos-a-instalacao"></a>
