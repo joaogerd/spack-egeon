@@ -1,18 +1,10 @@
 # Configuração da Plataforma JACI
 
+For the English version of this document, see [README.md](README.md).
+
 Este diretório contém os arquivos de configuração específicos da plataforma **JACI**, necessários para a integração do supercomputador ao ecossistema **spack-stack**.
 
-As configurações aqui mantidas descrevem a toolchain de compiladores disponível na máquina, os pacotes externos fornecidos pelo sistema, o comportamento geral do Spack e a política de geração de módulos adotada para esta plataforma. Em conjunto, esses arquivos estabelecem a base necessária para a criação de ambientes de software consistentes, reprodutíveis e sustentáveis no JACI.
-
-## Idioma da documentação
-
-Este repositório pode manter documentação em **português** e **inglês**, de modo a atender tanto usuários locais quanto colaboradores externos.
-
-Sempre que aplicável:
-
-- arquivos `README.md` podem ser escritos em português;
-- versões equivalentes em inglês podem ser fornecidas em arquivos dedicados, como `README.en.md`;
-- a documentação deve preservar consistência técnica entre os dois idiomas.
+Os arquivos aqui mantidos descrevem a toolchain de compiladores disponível na máquina, os pacotes externos fornecidos pelo sistema, o comportamento geral do Spack e a política de geração de módulos adotada para esta plataforma. Em conjunto, eles estabelecem a base de configuração necessária para a criação de ambientes de software consistentes, reprodutíveis e sustentáveis no JACI.
 
 ## Finalidade
 
@@ -25,7 +17,7 @@ Isso inclui:
 - configuração do comportamento global do Spack para esta plataforma;
 - definição da organização e exposição dos módulos de ambiente para os usuários.
 
-Ao manter esses arquivos organizados em um diretório específico da máquina, a plataforma JACI pode ser integrada de forma estruturada, facilitando a criação de ambientes, a manutenção, a validação e futuras atualizações.
+Ao manter esses arquivos organizados em um diretório específico da máquina, a plataforma JACI pode ser integrada de forma estruturada e transparente, facilitando a criação de ambientes, a manutenção, a validação e futuras atualizações.
 
 ## Arquivos esperados
 
