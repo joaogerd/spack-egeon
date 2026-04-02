@@ -1,12 +1,14 @@
 # JACI Site Configuration
 
+For the Portuguese version of this document, see [README.pt-BR.md](README.pt-BR.md).
+
 This directory contains the machine-specific configuration files required to support the **JACI** supercomputer within the **spack-stack** framework.
 
-These files define the local compiler toolchain, external software provided by the system, general Spack behavior, and the module generation policy adopted for this platform. Together, they establish the configuration baseline needed to create consistent, reproducible, and maintainable software environments on JACI.
+The files maintained here describe the compiler toolchain available on the platform, the external software provided by the system, the general Spack behavior, and the module generation policy adopted for this site. Together, they define the configuration baseline required to create consistent, reproducible, and maintainable software environments on JACI.
 
 ## Purpose
 
-The purpose of this directory is to centralize all configuration elements that describe the JACI software environment from the perspective of **spack-stack** site integration.
+The purpose of this directory is to centralize all configuration elements that describe the **JACI** software environment from the perspective of **spack-stack** site integration.
 
 This includes:
 
@@ -15,7 +17,7 @@ This includes:
 - configuration of general Spack installation behavior;
 - specification of the module system layout exposed to end users.
 
-By keeping these files organized in a dedicated site directory, the JACI platform can be integrated in a structured way, facilitating environment creation, maintenance, validation, and future updates.
+By maintaining these files in a dedicated site directory, the JACI platform can be integrated in a structured and transparent way, facilitating environment creation, maintenance, validation, and future updates.
 
 ## Expected Files
 
