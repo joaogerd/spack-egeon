@@ -1,61 +1,61 @@
-# EGEON Site Configuration
+# Configuração da Plataforma EGEON
 
-For the Portuguese version of this document, see [README.pt-BR.md](README.pt-BR.md).
+For the English version of this document, see [README.md](README.md).
 
-This directory contains the machine-specific configuration files required to support the **EGEON** cluster within the **spack-stack** framework.
+Este diretório contém os arquivos de configuração específicos da plataforma **EGEON**, necessários para a integração do cluster ao ecossistema **spack-stack**.
 
-The files maintained here describe the compiler toolchain available on the platform, the external software provided by the system, the general Spack behavior, and the module generation policy adopted for this site. Together, they define the configuration baseline required to create consistent, reproducible, and maintainable software environments on EGEON.
+Os arquivos aqui mantidos descrevem a toolchain de compiladores disponível na máquina, os pacotes externos fornecidos pelo sistema, o comportamento geral do Spack e a política de geração de módulos adotada para esta plataforma. Em conjunto, eles estabelecem a base de configuração necessária para a criação de ambientes de software consistentes, reprodutíveis e sustentáveis no EGEON.
 
-## Purpose
+## Finalidade
 
-The purpose of this directory is to centralize all configuration elements that describe the **EGEON** software environment from the perspective of **spack-stack** site integration.
+A finalidade deste diretório é centralizar todos os elementos de configuração que descrevem o ambiente de software do **EGEON** sob a perspectiva da integração com o **spack-stack**.
 
-This includes:
+Isso inclui:
 
-- definition of the compiler suite available on the system;
-- registration of externally provided packages and libraries;
-- configuration of general Spack installation behavior;
-- specification of the module system layout exposed to end users.
+- definição do conjunto de compiladores disponíveis no sistema;
+- registro de pacotes e bibliotecas externas fornecidas pelo ambiente da máquina;
+- configuração do comportamento global do Spack para esta plataforma;
+- definição da organização e exposição dos módulos de ambiente para os usuários.
 
-By maintaining these files in a dedicated site directory, the EGEON platform can be integrated in a structured and transparent way, facilitating environment creation, maintenance, validation, and future updates.
+Ao manter esses arquivos organizados em um diretório específico da máquina, a plataforma EGEON pode ser integrada de forma estruturada e transparente, facilitando a criação de ambientes, a manutenção, a validação e futuras atualizações.
 
-## Expected Files
+## Arquivos esperados
 
-The following files are expected to be maintained in this directory:
+Espera-se que os seguintes arquivos sejam mantidos neste diretório:
 
 - **`compilers.yaml`**  
-  Declares the compiler toolchains available on EGEON, including executable paths, versions, target architecture, and compiler-specific settings required by Spack.
+  Declara os compiladores disponíveis no EGEON, incluindo caminhos dos executáveis, versões, arquitetura de destino e demais atributos necessários para o uso correto pelo Spack.
 
 - **`config.yaml`**  
-  Defines global Spack configuration parameters for this site, such as installation tree behavior, build settings, cache usage, and other platform-level preferences.
+  Define parâmetros globais de configuração do Spack para esta plataforma, como organização das instalações, comportamento de build, uso de cache e demais preferências de escopo institucional.
 
 - **`modules.yaml`**  
-  Specifies how environment modules are generated and organized for software installed through Spack, including naming conventions, hierarchy, and exposure policy for users.
+  Especifica como os módulos de ambiente serão gerados e organizados para os softwares instalados via Spack, incluindo convenções de nomenclatura, hierarquia e política de disponibilização aos usuários.
 
 - **`packages.yaml`**  
-  Describes externally installed packages available on EGEON, such as MPI libraries, NetCDF, HDF5, and other system-provided dependencies that should be reused instead of rebuilt by Spack.
+  Descreve os pacotes externos já instalados e disponíveis no EGEON, como bibliotecas MPI, NetCDF, HDF5 e outras dependências fornecidas pelo sistema que devem ser reutilizadas em vez de recompiladas pelo Spack.
 
-## Scope
+## Escopo
 
-The contents of this directory must be limited to configurations that are specific to the **EGEON** platform.
+O conteúdo deste diretório deve se restringir às configurações específicas da plataforma **EGEON**.
 
-This directory should not contain:
+Este diretório não deve conter:
 
-- application-specific environment definitions;
-- generic template configurations shared across multiple machines;
-- temporary files, test artifacts, or local user adjustments unrelated to the site definition.
+- definições de ambientes específicas de aplicações;
+- configurações genéricas de templates compartilhados entre múltiplas máquinas;
+- arquivos temporários, artefatos de teste ou ajustes locais de usuários que não façam parte da definição institucional da plataforma.
 
-## Maintenance Guidelines
+## Diretrizes de manutenção
 
-All files in this directory should reflect the actual operational state of the EGEON environment. Any change in compilers, external libraries, module organization, or site policies should be evaluated and, when applicable, propagated to these configuration files.
+Todos os arquivos deste diretório devem refletir o estado real do ambiente operacional do EGEON. Qualquer alteração em compiladores, bibliotecas externas, organização de módulos ou políticas da plataforma deve ser avaliada e, quando pertinente, incorporada a estes arquivos de configuração.
 
-Updates should be made with attention to:
+As atualizações devem ser realizadas com atenção a:
 
-- technical consistency with the deployed system environment;
-- reproducibility of software builds;
-- compatibility with the selected **spack-stack** release;
-- clarity and maintainability of the site definition over time.
+- consistência técnica com o ambiente efetivamente implantado;
+- reprodutibilidade dos builds de software;
+- compatibilidade com a versão do **spack-stack** adotada;
+- clareza e manutenibilidade da definição da plataforma ao longo do tempo.
 
-## Final Note
+## Observação final
 
-This directory represents the official **site configuration layer** for EGEON within the repository. Its quality and accuracy are essential to ensure that software environments generated with **spack-stack** remain stable, reproducible, and aligned with the characteristics of the target supercomputing platform.
+Este diretório representa a camada oficial de **configuração de site** da plataforma EGEON dentro do repositório. Sua qualidade e precisão são essenciais para garantir que os ambientes gerados com o **spack-stack** permaneçam estáveis, reprodutíveis e aderentes às características do cluster de destino.
