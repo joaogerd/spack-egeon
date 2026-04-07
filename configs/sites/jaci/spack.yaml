@@ -1,0 +1,80 @@
+spack:
+  specs:
+  - gcc@12.3.0
+  - blis %gcc
+  - bison
+  - boost
+  - ecbuild
+  - eckit
+  - ecmwf-atlas
+  - eigen
+  - ectrans
+  - esmf
+  - fckit
+  - fftw +mpi +openmp
+  - flex
+  - flexiblas
+  - git-lfs
+  - gptl
+  - gsl-lite
+  - hdf5 +mpi +fortran +hl
+  - jedi-cmake
+  - jedi-mpas-env
+  - llvm-openmp
+  - metis
+  - mpas-model
+  - mpich
+  - nccmp
+  - netcdf-c +mpi ~parallel-netcdf
+  - netcdf-fortran
+  - netcdf-cxx4
+  - nlohmann-json
+  - nlohmann-json-schema-validator
+  - openblas %gcc@12.3.0
+  - openblas
+  - openmpi
+  - parallel-netcdf
+  - parallelio +pnetcdf
+  - python
+  - py-pycodestyle
+  - udunits
+  - wget
+  - zlib
+  - mpas-model@8.3.1
+  view: true
+
+  concretizer:
+    unify: when_possible
+
+  packages:
+    gcc:
+      externals: []
+    cce:
+      externals: []
+    all:
+      providers:
+        blas: [netlib-lapack, blis]
+        lapack: [netlib-lapack, blis]
+        zlib-api: [zlib]
+    openblas:
+      buildable: true
+
+  config:
+    install_tree:
+      root: /lustre/projetos/monan_das/rodrigo.braz/spack-install
+    build_jobs: 8
+    modules:
+      enable: [lmod]
+      lmod:
+        core_compilers: [gcc@12.3.0]
+        hash_length: 0
+        projections:
+          all: '{name}/{version}'
+        defaults:
+        - gcc@12.3.0
+
+  modules:
+    default:
+      lmod:
+        core_compilers:
+        - gcc@12.3.0/7va3utkx3czor2f47txsvjqou4ynfdtx

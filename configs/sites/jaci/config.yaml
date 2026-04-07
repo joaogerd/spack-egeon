@@ -1,0 +1,7 @@
+config:
+  install_tree:
+    root: /lustre/projetos/monan_das/rodrigo.braz/spack-install
+  build_jobs: 8
+  compiler:
+    default: gcc@12.3.0
+
