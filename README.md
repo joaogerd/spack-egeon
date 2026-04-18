@@ -25,6 +25,34 @@ No estado atual do projeto, o repositório contém:
 
 ---
 
+## Por que o bootstrap passou a ser necessário
+
+A necessidade de um fluxo de **bootstrap** mais forte ficou evidente quando surgiu o trabalho de preparação do site da **JACI**.
+
+Na prática, a dificuldade de fechar uma nova configuração de `site` mostrou que o principal gargalo não era escrever o template da aplicação, mas sim transformar o ambiente real da máquina em um conjunto consistente de arquivos como:
+
+- `compilers.yaml`
+- `packages.yaml`
+- `modules.yaml`
+- `config.yaml`
+
+Esse trabalho envolve ao mesmo tempo:
+
+- identificar compiladores e wrappers reais;
+- entender o MPI disponível e seus módulos associados;
+- reconstruir externals válidos para o Spack;
+- definir providers sem quebrar a concretização;
+- separar o que é **fato da máquina** do que é **política institucional**.
+
+Foi exatamente dessa dificuldade prática, evidenciada pelo esforço em torno da **JACI**, que nasceu a necessidade de fortalecer o desenvolvimento do **bootstrap-spack**: reduzir o trabalho manual, aumentar a reprodutibilidade e tornar a geração de `site` mais auditável e menos frágil.
+
+Em outras palavras:
+
+- o **spack-stack-inpe** guarda a configuração institucional aprovada;
+- o **bootstrap** existe para tornar viável descobrir a máquina e produzir essa configuração com mais consistência.
+
+---
+
 ## Arquitetura do repositório
 
 Este repositório segue a separação explícita entre:
