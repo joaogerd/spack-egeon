@@ -2,226 +2,133 @@
 ###############################################################################
 # start_spack_bundle.sh
 # -----------------------------------------------------------------------------
-# Activate the **shared Spack‑Stack environment** (mpas‑bundle) on Egeon.
-# -----------------------------------------------------------------------------
-# Maintainer : João Gerd Zell de Mattos <joao.gerd@gmail.com>
-# Created    : 2025‑04‑?? (original version)
-# Last update: 2025‑06‑05  (added disable_conda helper)
+# Generic activation helper for a Spack-Stack environment created from this
+# repository.
 #
-# PURPOSE
-# =======
-# Initialise a **read‑only, centrally installed** Spack‑Stack tree so that all
-# compilers, libraries and tools needed by MPAS‑JEDI are visible to the shell.
-# It performs four main steps:
-#   1. source Spack itself (adds `spack` to PATH).
-#   2. activate the requested *environment* (spack env activate …).
-#   3. extend `module` search path and load curated module sets (essentials,
-#      MPI‑dependent libs, etc.).
-#   4. export key variables (NETCDF_DIR, HDF5_DIR, …) **and** patch
-#      `LD_LIBRARY_PATH` for NetCDF/HDF5, because Lmod packages sometimes omit
-#      shared libs from MODULEPATH.
+# This script is meant to be sourced:
+#   source start_spack_bundle.sh [options]
 #
-# USAGE
-# -----
-#   source start_spack_bundle.sh [--version <ver>] [--env <name>]
-#                                [--spack-root <path>]
+# Options:
+#   --version <ver>        Spack-Stack version
+#   --env <name>           Environment name
+#   --root-prefix <path>   Prefix that contains spack-stack_<version>
+#   --compiler-module <m>  Meta-module to load after activation
+#   --mpi-module <m>       MPI meta-module to load after activation
 #
-#   All options are *optional* and can be combined:
-#     --version      Spack‑Stack version   (default: 1.7.0)
-#     --env          Environment name      (default: mpas-bundle)
-#     --spack-root   Override root path    (default: /mnt/beegfs/das.group)
-#
-# The script is meant to be *sourced*, not executed, so that exported variables
-# persist in the caller shell (e.g. `source start_spack_bundle.sh`).
-#
-# EXIT CODES
-#   0 success | 1 user error | 2 runtime failure (trap protected)
+# The installer script rewrites the defaults below when generating a private
+# copy in ~/.spack/<env>/start_spack_bundle.sh.
 ###############################################################################
 
-###############################################################################
-# !FUNCTION: disable_conda
-# !DESCRIPTION:
-#   Checks whether a Conda environment is active and completely deactivates it.
-###############################################################################
-disable_conda() {
-    if [[ -n "$CONDA_PREFIX" ]]; then
-        echo "[WARNING]  Conda environment detected: $CONDA_PREFIX"
-        echo "[ACTION] Deactivating all Conda environments…"
-        
-        # Deactivate in a loop until no CONDA_PREFIX remains
-        while [[ -n "$CONDA_PREFIX" ]]; do
-            if command -v conda &>/dev/null; then
-                conda deactivate &>/dev/null || break
-            elif [[ -n "$(type -t deactivate)" ]]; then
-                # Compatibility with very old Conda setups
-                deactivate &>/dev/null || break
+DEFAULT_SPACK_VERSION="1.7.0"
+DEFAULT_ENV_NAME="mpas-bundle"
+DEFAULT_ROOT_PREFIX="/mnt/beegfs/$USER"
+DEFAULT_COMPILER_MODULE="stack-gcc/9.4.0"
+DEFAULT_MPI_MODULE="stack-openmpi/4.1.1"
+
+_disable_conda() {
+    if [[ -n "${CONDA_PREFIX:-}" ]]; then
+        echo "[INFO] Conda ativo detectado em: $CONDA_PREFIX"
+        while [[ -n "${CONDA_PREFIX:-}" ]]; do
+            if command -v conda >/dev/null 2>&1; then
+                conda deactivate >/dev/null 2>&1 || break
+            elif [[ -n "$(type -t deactivate 2>/dev/null || true)" ]]; then
+                deactivate >/dev/null 2>&1 || break
             else
                 break
             fi
         done
-        
-        # Unset Conda-related variables
-        unset CONDA_PREFIX \
-              CONDA_DEFAULT_ENV \
-              CONDA_PROMPT_MODIFIER \
-              CONDA_SHLVL \
-              _CONDA_ROOT
-        
-        echo "[ OK ] All Conda environments have been disabled."
-    else
-        echo "[ OK ] No active Conda environment detected."
+        unset CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_PROMPT_MODIFIER CONDA_SHLVL _CONDA_ROOT || true
+        echo "[INFO] Ambientes Conda foram desativados."
     fi
 }
 
-###############################################################################
-# !FUNCTION: activate_spack
-# !DESCRIPTION:
-#   Sources Spack, activates the desired environment, loads curated module
-#   sets, and exports key variables so that the MPAS‑JEDI tool‑chain becomes
-#   available in the current shell session.
-###############################################################################
-activate_spack () {
-  ###########################################################################
-  # Save the current shell flags so we can restore them later.              #
-  ###########################################################################
-  local _old_set
-  _old_set=$(set +o)       # captures output like: "set +o errexit +o nounset …"
+_activate_spack_bundle() {
+    local _old_set
+    _old_set=$(set +o)
+    set -Eeuo pipefail
+    trap 'printf "[ERROR] %s – linha %d\n" "${BASH_SOURCE[0]}" "$LINENO" >&2; return 2 2>/dev/null || exit 2' ERR
 
-  ###########################################################################
-  # Enable “strict mode” **only** inside this function.                     #
-  # -E  : propagate ERR traps into functions and command substitutions      #
-  # -e  : abort as soon as any command returns a non-zero status            #
-  # -u  : abort if an undefined variable is referenced                      #
-  # -o pipefail : a pipeline fails if **any** command in it fails           #
-  ###########################################################################
-  set -Eeuo pipefail
+    local spack_version="$DEFAULT_SPACK_VERSION"
+    local env_name="$DEFAULT_ENV_NAME"
+    local root_prefix="$DEFAULT_ROOT_PREFIX"
+    local compiler_module="$DEFAULT_COMPILER_MODULE"
+    local mpi_module="$DEFAULT_MPI_MODULE"
 
-  ###########################################################################
-  # If an error occurs, print a helpful message.                             #
-  # If we’re still inside the function, `return 2`; otherwise fall back to   #
-  # `exit 2` so the script run with “bash script.sh” still stops.            #
-  ###########################################################################
-  trap '{
-      printf "[ERROR] %s – line %d\n" "${BASH_SOURCE[0]}" $LINENO >&2
-      return 2 2>/dev/null || exit 2
-  }' ERR
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --version) spack_version="$2"; shift 2 ;;
+            --env) env_name="$2"; shift 2 ;;
+            --root-prefix|--spack-root) root_prefix="$2"; shift 2 ;;
+            --compiler-module) compiler_module="$2"; shift 2 ;;
+            --mpi-module) mpi_module="$2"; shift 2 ;;
+            *) echo "[ERROR] Opção desconhecida: $1" >&2; return 1 2>/dev/null || exit 1 ;;
+        esac
+    done
 
-  # -------- helpers ------------------------------------------------------------
-  log() { printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*" ; }
-  die() { log "[ERROR] $*" ; return 1 2>/dev/null || exit 1; }
-  load_module() { module load "$1" 2>/dev/null || log "[WARN] module not found: $1" ; }
-  
-  # -------- argument parsing ---------------------------------------------------
-  SPACK_VERSION=1.7.0
-  ENV_NAME=mpas-bundle
-  ROOT_PREFIX="/mnt/beegfs/das.group"
-  
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --version)   SPACK_VERSION="$2" ; shift 2 ;;
-      --env)       ENV_NAME="$2"     ; shift 2 ;;
-      --spack-root) ROOT_PREFIX="$2" ; shift 2 ;;
-      *) die "Unknown option: $1" ;;
-    esac
-  done
-  
-  # -------- paths --------------------------------------------------------------
-  SPACK_ROOT="$ROOT_PREFIX/spack-stack_$SPACK_VERSION"
-  SPACK_ENV_PATH="$SPACK_ROOT/envs/$ENV_NAME"
-  MODULE_CORE_PATH="$SPACK_ENV_PATH/install/modulefiles/Core"
-  
-  [[ -d "$SPACK_ROOT" ]]      || die "Spack root not found: $SPACK_ROOT"
-  [[ -d "$SPACK_ENV_PATH" ]]  || die "Spack env not found:  $SPACK_ENV_PATH"
-  
-  # Avoid repeated activation
-  ENV_FLAG="$(tr '[:lower:]-' '[:upper:]_' <<< "$ENV_NAME")_ENV_ACTIVE"
-  if [[ ${!ENV_FLAG:-0} -eq 1 ]]; then
-    log "[INFO] Environment '$ENV_NAME' already active – skipping re‑activation."
-    return 0 2>/dev/null || exit 0
-  fi
-  
-  START_TIME=$(date +%s)
-  
-  # -------- step 1: source Spack ----------------------------------------------
-  log "[INFO] Activating Spack ($SPACK_VERSION) at $SPACK_ROOT …"
-  export PATH="$SPACK_ROOT/bin:$PATH"
-  
-  # Prevent Spack from using or writing to user/system config scopes
-  export SPACK_DISABLE_LOCAL_CONFIG=true
+    local spack_root="$root_prefix/spack-stack_$spack_version"
+    local spack_env_path="$spack_root/envs/$env_name"
+    local module_core_path="$spack_env_path/install/modulefiles/Core"
+    local env_flag
+    env_flag="$(tr '[:lower:]-' '[:upper:]_' <<< "$env_name")_ENV_ACTIVE"
 
-  # enter Spack root to avoid relative‑path issues inside setup.sh
-  OLDPWD_SPACK="$PWD"
-  cd "$SPACK_ROOT"
-  source "./setup.sh"
-  cd "$OLDPWD_SPACK"
-  
-  # user caches on BeeGFS to offload /home
-  export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
-  export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
-  mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
-  
-  command -v spack >/dev/null || die "spack not in PATH after activation."
-  
-  # -------- step 2: activate env ----------------------------------------------
-  log "[INFO] Activating Spack environment '$ENV_NAME' …"
-  spack env activate "$SPACK_ENV_PATH"
-  
-  # -------- step 3: load modules ----------------------------------------------
-  module use "$MODULE_CORE_PATH"
-  
-  log "[INFO] Loading essential modules ..."
-  ESSENTIALS=(stack-gcc/9.4.0 stack-openmpi/4.1.1 stack-python/3.10.13)
-  for m in "${ESSENTIALS[@]}";   do load_module "$m"; done
-  
-  log "[INFO] Loading standard modules ..."
-  EXTRA_PKGS=(
-    boost/1.84.0 jedi-cmake/1.4.0 python/3.10.13 c-blosc/1.21.5 libbsd/0.11.7
-    qhull/2020.2 ca-certificates-mozilla/2023-05-30 libmd/1.0.4 snappy/1.1.10
-    cmake/3.23.1 libxcrypt/4.4.35 sqlite/3.43.2 curl/8.4.0 nghttp2/1.57.0
-    ecbuild/3.7.2 openblas/0.3.24 eigen/3.4.0 tar/1.34 gcc-runtime/9.4.0
-    py-pip/23.1.2 udunits/2.2.28 gettext/0.21.1 py-pycodestyle/2.11.0
-    util-linux-uuid/2.38.1 gmake/4.3 py-setuptools/63.4.3 zlib-ng/2.1.5
-    gsl-lite/0.37.0 py-wheel/0.41.2 zstd/1.5.2
-  )
-  for m in "${EXTRA_PKGS[@]}";    do load_module "$m"; done
-  
-  log "[INFO] Loading MPI deps modules ..."
-  MPI_PKGS=(
-    atlas/0.36.0 fftw/3.3.10 nccmp/1.9.0.1 parallelio/2.6.2
-    eckit/1.24.5 fiat/1.2.0 netcdf-c/4.9.2 ectrans/1.2.0 netcdf-cxx4/4.3.1
-    gptl/8.1.1 netcdf-fortran/4.6.1 fckit/0.11.0 hdf5/1.14.3 parallel-netcdf/1.12.3
-  )
-  for m in "${MPI_PKGS[@]}";      do load_module "$m"; done
-  
-  # -------- step 4: export dirs + patch LD_LIBRARY_PATH ------------------------
-  
-  log "[INFO] Updating LD_LIBRARY_PATH..."
-  NETCDF_DIR="$(spack location -i netcdf-c 2>/dev/null || true)"
-  NETCDF_CXX_DIR="$(spack location -i netcdf-cxx4 2>/dev/null || true)"
-  HDF5_DIR="$(spack location -i hdf5 2>/dev/null || true)"
-  
-  [[ -n "$NETCDF_DIR" ]]      && export NETCDF_DIR
-  [[ -n "$NETCDF_CXX_DIR" ]]  && export NETCDF_CXX_DIR
-  [[ -n "$HDF5_DIR" ]]        && export HDF5_DIR
-  
-  for libdir in "$NETCDF_DIR/lib" "$NETCDF_CXX_DIR/lib" "$HDF5_DIR/lib"; do
-    [[ -d "$libdir" ]] && export LD_LIBRARY_PATH="$libdir:$LD_LIBRARY_PATH"
-  done
-  
-  END_TIME=$(date +%s)
-  
-  log "[INFO] Environment '$ENV_NAME' is ready (Δt=$((END_TIME-START_TIME)) s)"
-  export "$ENV_FLAG"=1
+    [[ -d "$spack_root" ]] || { echo "[ERROR] Spack root não encontrado: $spack_root" >&2; return 1 2>/dev/null || exit 1; }
+    [[ -d "$spack_env_path" ]] || { echo "[ERROR] Ambiente Spack não encontrado: $spack_env_path" >&2; return 1 2>/dev/null || exit 1; }
 
-  ###########################################################################
-  # Restore the original shell flags and remove our ERR trap                #
-  ###########################################################################
-  trap - ERR        # remove our trap
-  eval "$_old_set"  # restore flags (errexit, nounset, etc.)
+    if [[ ${!env_flag:-0} -eq 1 ]]; then
+        echo "[INFO] Ambiente '$env_name' já está ativo."
+        trap - ERR
+        eval "$_old_set"
+        return 0 2>/dev/null || exit 0
+    fi
+
+    _disable_conda
+
+    export PATH="$spack_root/bin:$PATH"
+    export SPACK_DISABLE_LOCAL_CONFIG=true
+    export SPACK_USER_CACHE_PATH="/mnt/beegfs/$USER/.spack-user-cache"
+    export XDG_CACHE_HOME="/mnt/beegfs/$USER/.xdg-cache"
+    mkdir -p "$SPACK_USER_CACHE_PATH" "$XDG_CACHE_HOME"
+
+    local oldpwd_spack="$PWD"
+    cd "$spack_root"
+    source ./setup.sh
+    cd "$oldpwd_spack"
+
+    command -v spack >/dev/null 2>&1 || { echo "[ERROR] spack não ficou disponível após setup.sh" >&2; return 1 2>/dev/null || exit 1; }
+
+    echo "[INFO] Ativando ambiente $env_name em $spack_env_path"
+    spack env activate "$spack_env_path"
+
+    if [[ -d "$module_core_path" ]]; then
+        module use "$module_core_path"
+    fi
+
+    if [[ -n "$compiler_module" ]]; then
+        module load "$compiler_module" >/dev/null 2>&1 || echo "[WARNING] Módulo não encontrado: $compiler_module"
+    fi
+
+    if [[ -n "$mpi_module" ]]; then
+        module load "$mpi_module" >/dev/null 2>&1 || echo "[WARNING] Módulo não encontrado: $mpi_module"
+    fi
+
+    local netcdf_dir netcdf_cxx_dir hdf5_dir libdir
+    netcdf_dir="$(spack location -i netcdf-c 2>/dev/null || true)"
+    netcdf_cxx_dir="$(spack location -i netcdf-cxx4 2>/dev/null || true)"
+    hdf5_dir="$(spack location -i hdf5 2>/dev/null || true)"
+
+    [[ -n "$netcdf_dir" ]] && export NETCDF_DIR="$netcdf_dir"
+    [[ -n "$netcdf_cxx_dir" ]] && export NETCDF_CXX_DIR="$netcdf_cxx_dir"
+    [[ -n "$hdf5_dir" ]] && export HDF5_DIR="$hdf5_dir"
+
+    for libdir in "${NETCDF_DIR:-}/lib" "${NETCDF_CXX_DIR:-}/lib" "${HDF5_DIR:-}/lib"; do
+        [[ -d "$libdir" ]] && export LD_LIBRARY_PATH="$libdir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    done
+
+    export "$env_flag"=1
+    echo "[INFO] Ambiente '$env_name' ativado com sucesso."
+
+    trap - ERR
+    eval "$_old_set"
 }
 
-# Disable Conda (if necessary) before activating Spack
-disable_conda
-
-# Execute the function, forwarding any CLI arguments the user provides.
-activate_spack "$@"
+_activate_spack_bundle "$@"
