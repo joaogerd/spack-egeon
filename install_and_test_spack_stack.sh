@@ -114,7 +114,13 @@ fi
 log "Inicializando Spack-Stack"
 source setup.sh
 
-log "Copiando configurações de site e template"
+log "Copiando configurações common, site e template"
+if [[ -d "$CONFIG_REPO_PATH/configs/common" ]]; then
+    rm -rf "configs/common"
+    cp -r "$CONFIG_REPO_PATH/configs/common" "configs/"
+else
+    warn "Diretório configs/common não encontrado em $CONFIG_REPO_PATH; mantendo common do spack-stack"
+fi
 rm -rf "configs/sites/$SITE_NAME" "configs/templates/$TEMPLATE_NAME"
 cp -r "$CONFIG_REPO_PATH/configs/sites/$SITE_NAME" "configs/sites/"
 cp -r "$CONFIG_REPO_PATH/configs/templates/$TEMPLATE_NAME" "configs/templates/"
