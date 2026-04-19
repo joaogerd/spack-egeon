@@ -2,6 +2,41 @@
 
 Este documento descreve o uso dos scripts do repositório para **criar**, **instalar**, **testar** e **ativar** ambientes do `spack-stack` a partir das configurações institucionais versionadas aqui.
 
+---
+
+## Onde o bootstrap entra no fluxo
+
+Antes de usar os scripts deste repositório, é importante entender que eles **não descobrem a máquina**. Eles partem do pressuposto de que já existe um `site` consolidado em:
+
+```text
+configs/sites/<machine>/
+```
+
+Quem ajuda nessa etapa de descoberta e derivação do `site` é o projeto **bootstrap-spack**.
+
+Repositório:
+
+- https://github.com/joaogerd/bootstrap-spack
+
+Na prática, o fluxo completo é:
+
+```text
+máquina real
+→ bootstrap-spack
+→ revisão institucional do site
+→ spack-stack-inpe
+→ install_and_test_spack_stack.sh
+→ ambiente final
+```
+
+Ou seja:
+
+- o **bootstrap-spack** ajuda a detectar compiladores, MPI, externals e parâmetros básicos da máquina;
+- o **spack-stack-inpe** guarda os arquivos aprovados de `site` e `template`;
+- os scripts deste repositório usam esses arquivos aprovados para criar e ativar o ambiente final.
+
+---
+
 ## Scripts envolvidos
 
 ### `install_and_test_spack_stack.sh`
@@ -218,7 +253,7 @@ O fluxo automatizado é o mais indicado quando você quer:
 
 - instalar o ambiente do zero;
 - repetir uma instalação com rastreabilidade;
-- validar rapidamente um `site` novo;
+- validar rapidamente um `site` novo já consolidado;
 - testar se `site + template` continuam consistentes;
 - padronizar a criação do ambiente entre usuários.
 
