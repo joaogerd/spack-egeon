@@ -15,27 +15,55 @@ Essa separação é importante para manter:
 
 ---
 
-## Ideia central
+## Fluxo completo
 
-O ambiente final não deve nascer de um único arquivo monolítico nem de um procedimento manual difícil de repetir.
-
-Ele deve surgir da combinação de três camadas:
+O fluxo completo deve ser entendido assim:
 
 ```text
-site (máquina)
-+
-template (aplicação)
-+
-scripts (provisão/ativação)
-=
-ambiente final
+máquina real
+→ bootstrap-spack
+→ site institucional
+→ template
+→ scripts de provisão/ativação
+→ ambiente final
 ```
 
-Em termos práticos:
+### Onde entra o `bootstrap-spack`
 
-- o **site** descreve a infraestrutura disponível na máquina;
-- o **template** descreve a aplicação e suas dependências;
-- os **scripts** executam o fluxo operacional que transforma isso em ambiente utilizável.
+O **bootstrap-spack** é um projeto separado, dedicado à descoberta e derivação de configuração de `site`.
+
+Repositório:
+
+- https://github.com/joaogerd/bootstrap-spack
+
+Ele existe para ajudar a transformar a realidade da máquina em artefatos compatíveis com o ecossistema do `spack-stack`, principalmente:
+
+- `compilers.yaml`
+- `packages.yaml`
+- `modules.yaml`
+- `config.yaml`
+
+Em termos práticos, o `bootstrap-spack` ajuda a:
+
+- detectar compiladores e wrappers reais;
+- identificar MPI, módulos e externals disponíveis;
+- derivar providers e parâmetros básicos de runtime;
+- separar o que é **fato detectado** do que é **política institucional**;
+- reduzir o esforço manual para fechar um novo `site`.
+
+### Onde entra o `spack-stack-inpe`
+
+O **spack-stack-inpe** é o repositório institucional que guarda:
+
+- os `site`s aprovados e versionados;
+- os `template`s de aplicação;
+- os scripts operacionais de criação, teste e ativação;
+- a documentação do fluxo institucional.
+
+Em resumo:
+
+- **bootstrap-spack** → ajuda a descobrir a máquina e gerar ou revisar o `site`;
+- **spack-stack-inpe** → guarda a configuração consolidada e distribui o fluxo operacional.
 
 ---
 
@@ -61,11 +89,6 @@ Esse processo exige ao mesmo tempo:
 - distinguir o que é **fato da máquina** do que é **política institucional**.
 
 Foi dessa dificuldade prática que surgiu a necessidade de fortalecer o desenvolvimento do **bootstrap-spack**. A função dele não é substituir o repositório institucional, mas tornar mais viável e menos frágil a criação dos arquivos de `site` para novas máquinas.
-
-Em resumo:
-
-- o **spack-stack-inpe** guarda a configuração institucional aprovada;
-- o **bootstrap** existe para ajudar a descobrir a máquina e produzir essa configuração com mais consistência.
 
 ---
 
@@ -189,28 +212,6 @@ Ele serve para:
 
 ---
 
-## Relação entre os componentes
-
-A relação entre as camadas pode ser lida assim:
-
-| Camada     | Papel principal |
-|------------|-----------------|
-| `site`     | definir a infraestrutura da máquina |
-| `template` | definir a aplicação |
-| `scripts`  | transformar site + template em ambiente utilizável |
-
-Isso evita dois erros comuns:
-
-### Erro 1 — colocar tudo no site
-
-Quando o `site` começa a carregar dependências da aplicação, ele perde sua função de representar a máquina e fica acoplado demais a um caso específico.
-
-### Erro 2 — depender só de procedimento manual
-
-Quando a criação do ambiente depende de muitos passos manuais e implícitos, a chance de divergência entre usuários e entre máquinas aumenta muito.
-
----
-
 ## Relação com o bootstrap-spack
 
 O `spack-stack-inpe` não é o lugar certo para implementar toda a lógica de descoberta da máquina.
@@ -232,33 +233,8 @@ Já o **bootstrap-spack** é o espaço natural para:
 
 Assim, a relação correta entre os dois é:
 
-- **bootstrap-spack** → ajuda a gerar ou revisar a configuração de `site`
-- **spack-stack-inpe** → guarda a configuração institucional consolidada
-
----
-
-## Leitura prática da arquitetura
-
-Quando alguém quiser adicionar uma nova máquina, o caminho correto é pensar nesta ordem:
-
-1. **entender a máquina**
-   - compiladores
-   - MPI
-   - módulos
-   - externals
-
-2. **consolidar o site**
-   - `compilers.yaml`
-   - `packages.yaml`
-   - `modules.yaml`
-   - `config.yaml`
-
-3. **reutilizar ou ajustar o template**
-   - por exemplo, `mpas-bundle`
-
-4. **provisionar e testar o ambiente com os scripts**
-
-Essa sequência reduz mistura de responsabilidades e deixa a manutenção muito mais limpa.
+- **bootstrap-spack** → ajuda a gerar ou revisar a configuração de `site`;
+- **spack-stack-inpe** → guarda a configuração institucional consolidada.
 
 ---
 
