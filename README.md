@@ -25,6 +25,58 @@ No estado atual do projeto, o repositório contém:
 
 ---
 
+## Fluxo completo
+
+Hoje, o fluxo completo deve ser entendido em duas camadas complementares:
+
+```text
+máquina real
+→ bootstrap-spack
+→ site institucional
+→ template
+→ scripts de provisão/ativação
+→ ambiente final
+```
+
+### O que é o `bootstrap-spack`
+
+O **bootstrap-spack** é um projeto separado, voltado para **descoberta automática e derivação de configuração de site**.
+
+Repositório:
+
+- https://github.com/joaogerd/bootstrap-spack
+
+Ele existe para ajudar a transformar a realidade da máquina em artefatos compatíveis com o ecossistema do `spack-stack`, especialmente arquivos como:
+
+- `compilers.yaml`
+- `packages.yaml`
+- `modules.yaml`
+- `config.yaml`
+
+Em termos práticos, o `bootstrap-spack` ajuda a:
+
+- detectar compiladores e wrappers reais;
+- identificar MPI, módulos e externals disponíveis;
+- derivar providers e parâmetros básicos de runtime;
+- separar melhor o que é **fato detectado** do que é **política institucional**;
+- reduzir o esforço manual para fechar um novo `site`.
+
+### O que é o `spack-stack-inpe`
+
+Já o **spack-stack-inpe** é o repositório institucional que guarda:
+
+- os `site`s aprovados e versionados;
+- os `template`s de aplicação;
+- os scripts operacionais de criação, teste e ativação;
+- a documentação do fluxo institucional.
+
+Em resumo:
+
+- **bootstrap-spack** → ajuda a descobrir a máquina e gerar ou revisar o `site`;
+- **spack-stack-inpe** → guarda a configuração consolidada e distribui o fluxo operacional.
+
+---
+
 ## Por que o bootstrap passou a ser necessário
 
 A necessidade de um fluxo de **bootstrap** mais forte ficou evidente quando surgiu o trabalho de preparação do site da **JACI**.
@@ -46,11 +98,6 @@ Esse trabalho envolve ao mesmo tempo:
 
 Foi exatamente dessa dificuldade prática, evidenciada pelo esforço em torno da **JACI**, que nasceu a necessidade de fortalecer o desenvolvimento do **bootstrap-spack**: reduzir o trabalho manual, aumentar a reprodutibilidade e tornar a geração de `site` mais auditável e menos frágil.
 
-Em outras palavras:
-
-- o **spack-stack-inpe** guarda a configuração institucional aprovada;
-- o **bootstrap** existe para tornar viável descobrir a máquina e produzir essa configuração com mais consistência.
-
 ---
 
 ## Arquitetura do repositório
@@ -61,7 +108,7 @@ Este repositório segue a separação explícita entre:
 - **definição da aplicação** (`template`)
 - **automação da criação e ativação do ambiente** (`scripts`)
 
-Fluxo conceitual:
+Fluxo conceitual interno do repositório:
 
 ```text
 site (máquina)
@@ -76,6 +123,7 @@ ambiente final
 Para uma descrição mais detalhada da arquitetura, veja:
 
 - [`docs/architecture.md`](docs/architecture.md)
+- [`docs/bootstrap.md`](docs/bootstrap.md)
 
 ---
 
@@ -94,6 +142,7 @@ start_spack_bundle.sh
 docs/
 ├── architecture.md
 ├── automation.md
+├── bootstrap.md
 └── manual-installation.md
 ```
 
@@ -150,14 +199,18 @@ Antes de usar o repositório, confirme:
 - `git` disponível;
 - sistema de módulos funcional;
 - compilador base disponível na máquina (na EGEON, por exemplo, `gnu9`);
-- acesso ao GitHub para clonagem do `spack-stack` e deste repositório;
+- acesso ao GitHub para clonagem do `spack-stack`, deste repositório e, quando necessário, do `bootstrap-spack`;
 - permissões adequadas para criar diretórios e instalar no espaço de trabalho escolhido.
 
 ---
 
 ## Fluxo recomendado
 
-Para a maioria dos casos, o caminho recomendado é usar o script automatizado.
+Para a maioria dos casos, o caminho recomendado é:
+
+1. usar o **bootstrap-spack** para descobrir ou revisar o `site` da máquina;
+2. consolidar os arquivos aprovados em `configs/sites/<machine>/` neste repositório;
+3. usar `install_and_test_spack_stack.sh` para criar, instalar e validar o ambiente.
 
 ### Exemplo básico
 
@@ -338,6 +391,7 @@ Próximos passos naturais incluem:
 
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/automation.md`](docs/automation.md)
+- [`docs/bootstrap.md`](docs/bootstrap.md)
 - [`docs/manual-installation.md`](docs/manual-installation.md)
 
 ---
