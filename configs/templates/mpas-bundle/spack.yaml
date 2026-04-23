@@ -1,15 +1,22 @@
-# spack-stack hash: 6040a25
-# spack hash: e5274e9c2d
 spack:
   concretizer:
     unify: when_possible
+
   view: false
+
+  # O ambiente sempre será complementado por:
+  # - site/: informações específicas da máquina
+  # - common/: políticas e defaults compartilhados
   include:
   - site
   - common
+
+  # Lista genérica dos pacotes necessários ao ambiente MPAS-JEDI.
+  # Não fixa compilador nem versão específica de MPI da máquina.
   definitions:
-  - compilers: ['%gcc@9.4.0']
   - packages:
+    - python
+    - esmf
     - ecmwf-atlas
     - ecbuild
     - eckit
@@ -26,7 +33,6 @@ spack:
     - nccmp
     - py-pycodestyle
 
+  # Expande a lista acima em specs concretos.
   specs:
-  - matrix:
-    - [$packages]
-    - [$compilers]
+  - $packages
