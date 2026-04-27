@@ -6,7 +6,7 @@ spack:
   - boost
   - ecbuild
   - eckit
-  - ecmwf-atlas
+  - ecmwf-atlas+tesselation
   - eigen
   - ectrans
   - esmf
@@ -22,12 +22,10 @@ spack:
   - jedi-mpas-env
   - llvm-openmp
   - metis
-  - mpas-model
-  - mpich
   - nccmp
-  - netcdf-c +mpi ~parallel-netcdf
-  - netcdf-fortran
-  - netcdf-cxx4
+  - netcdf-c +mpi ^hdf5+mpi+hl
+  - netcdf-fortran ^netcdf-c+mpi ^hdf5+mpi+hl
+  - netcdf-cxx4 ^netcdf-c+mpi ^hdf5+mpi+hl
   - nlohmann-json
   - nlohmann-json-schema-validator
   - openblas %gcc@12.3.0
@@ -37,14 +35,16 @@ spack:
   - parallelio +pnetcdf
   - python
   - py-pycodestyle
+  - qhull
   - udunits
   - wget
   - zlib
-  - mpas-model@8.3.1
+  - lmod
+  - scorpio
   view: true
 
   concretizer:
-    unify: when_possible
+    unify: true
 
   packages:
     gcc:
@@ -58,6 +58,8 @@ spack:
         zlib-api: [zlib]
     openblas:
       buildable: true
+    fortran:
+      prefer: [gcc@12.3.0]
 
   config:
     install_tree:
@@ -66,15 +68,14 @@ spack:
     modules:
       enable: [lmod]
       lmod:
-        core_compilers: [gcc@12.3.0]
+        core_compilers: [gcc@7.5.0]  # Alterado para evitar conflito com o GCC 12
         hash_length: 0
         projections:
           all: '{name}/{version}'
-        defaults:
-        - gcc@12.3.0
 
   modules:
     default:
       lmod:
         core_compilers:
-        - gcc@12.3.0/7va3utkx3czor2f47txsvjqou4ynfdtx
+        - gcc@7.5.0  # Alterado para evitar loop infinito no Lmod
+
